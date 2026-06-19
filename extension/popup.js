@@ -198,6 +198,7 @@ function fillOpportunity(opportunity) {
   els.title.dataset.url = opportunity.source_url || opportunity.url || "";
   els.title.dataset.remoteStatus = opportunity.remote_status || "";
   els.title.dataset.employmentType = opportunity.employment_type || "";
+  els.title.dataset.companyContext = opportunity.company_context || "";
   els.title.dataset.questions = JSON.stringify(opportunity.application_questions || []);
   els.title.dataset.warnings = JSON.stringify(opportunity.extraction_warnings || []);
   if (opportunity.source === "upwork") {
@@ -219,6 +220,7 @@ function readRequest() {
   const skills = els.skills.value.split(",").map((skill) => skill.trim()).filter(Boolean);
   const questions = JSON.parse(els.title.dataset.questions || "[]");
   const warnings = JSON.parse(els.title.dataset.warnings || "[]");
+  const companyContext = els.title.dataset.companyContext || "";
   const opportunity = {
     source: els.source.value.trim() || "manual",
     source_url: els.title.dataset.url || "",
@@ -232,6 +234,7 @@ function readRequest() {
     description: els.description.value.trim(),
     skills,
     application_questions: questions,
+    company_context: companyContext,
     recruiter_or_client_context: [els.company.value.trim(), els.location.value.trim()].filter(Boolean).join(" | "),
     source_text: cleanJoined([
       els.title.value.trim(),
@@ -242,6 +245,7 @@ function readRequest() {
       els.title.dataset.remoteStatus || "",
       els.description.value.trim(),
       skills.join(" "),
+      companyContext,
     ]),
     extraction_confidence: warnings.length ? "medium" : "high",
     extraction_warnings: warnings,

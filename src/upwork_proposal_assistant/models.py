@@ -28,6 +28,7 @@ class OpportunitySnapshot(BaseModel):
     nice_to_haves: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
     application_questions: list[str] = Field(default_factory=list)
+    company_context: str = ""
     recruiter_or_client_context: str = ""
     source_text: str = ""
     extraction_confidence: str = "medium"
@@ -48,6 +49,7 @@ class OpportunitySnapshot(BaseModel):
                 " ".join(self.nice_to_haves),
                 " ".join(self.skills),
                 " ".join(self.application_questions),
+                self.company_context,
                 self.recruiter_or_client_context,
                 self.source_text,
             ]

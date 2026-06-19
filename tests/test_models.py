@@ -14,3 +14,13 @@ def test_opportunity_snapshot_ignores_removed_raw_text_field() -> None:
 
     assert "raw_text" not in snapshot.model_dump()
     assert "Old page-wide text" not in snapshot.search_text()
+
+
+def test_opportunity_snapshot_search_text_includes_company_context() -> None:
+    snapshot = OpportunitySnapshot(
+        title="Software Engineer",
+        company="Sonitalent LLC",
+        company_context="Sonitalent Corp is a global IT services company.",
+    )
+
+    assert "Sonitalent Corp is a global IT services company." in snapshot.search_text()

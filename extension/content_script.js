@@ -164,6 +164,7 @@
         ...(values.nice_to_haves || []),
         ...(values.skills || []),
         ...(values.application_questions || []),
+        values.company_context,
         values.recruiter_or_client_context,
       ]
         .filter(Boolean)
@@ -190,6 +191,7 @@
       nice_to_haves: values.nice_to_haves || [],
       skills,
       application_questions: values.application_questions || [],
+      company_context: clean(values.company_context),
       recruiter_or_client_context: clean(values.recruiter_or_client_context),
       source_text: sourceTextFrom({ ...values, description, skills }),
       extraction_confidence: values.extraction_confidence || "medium",
@@ -251,16 +253,18 @@
     async extract() {
       const job = jobPostingJsonLd();
       const description = htmlToText(job?.description);
+      const company = orgName(job?.hiringOrganization) || firstText(['[data-testid="job-detail-header-card"] a']);
       const extractionWarnings = description ? [] : ["Dice job description was not found; review the snapshot before drafting."];
       return opportunity("dice", {
         title: clean(job?.title),
-        company: orgName(job?.hiringOrganization) || firstText(['[data-testid="job-detail-header-card"] a']),
+        company,
         location: locationFromJsonLd(job) || firstText(['[data-testid="locationTypeBadge"]']),
         compensation: salaryFromJsonLd(job),
         employment_type: employmentTypeFromJsonLd(job),
         remote_status: remoteStatusFromJsonLd(job),
         description,
         skills: diceJobSkills(job),
+        company_context: diceCompanyContext(company),
         extraction_confidence: job && description ? "high" : "medium",
         extraction_warnings: extractionWarnings,
       });
@@ -350,6 +354,15 @@
       .map((node) => clean(node.textContent || ""))
       .filter(Boolean);
     return unique(skills);
+  }
+
+  function diceCompanyContext(company) {
+    const companyInfoHeading = Array.from(document.querySelectorAll('h2')).find((node) => clean(node.textContent) === "Company Info");
+    const card = companyInfoHeading?.parentElement;
+    if (!card) return "";
+    const aboutHeading = Array.from(card.querySelectorAll('h3')).find((node) => clean(node.textContent) === `About ${company}`);
+    if (!aboutHeading) return "";
+    return selectedText(card.querySelector('[data-testid="richTextElement"]'));
   }
 
   async function expandDetailsIfNeeded(detailsRoot) {

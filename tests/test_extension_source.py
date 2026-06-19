@@ -52,4 +52,8 @@ def test_dice_extraction_does_not_send_page_wide_text() -> None:
     assert "raw_text" not in dice_block
     assert "job?.description" in dice_block
     assert "title: clean(job?.title)" in dice_block
+    assert "company_context: diceCompanyContext(company)" in dice_block
+    assert '"Company Info"' in content_script
+    assert "`About ${company}`" in content_script
+    assert '[data-testid="richTextElement"]' in content_script
     assert 'firstText(["h1"])' not in dice_block
