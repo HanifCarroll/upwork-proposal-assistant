@@ -12,7 +12,6 @@ node --check extension/content_script.js
 node --check extension/options.js
 
 python3 -m json.tool extension/manifest.json >/dev/null
-python3 -m json.tool schemas/context_selection.schema.json >/dev/null
 python3 -m json.tool schemas/draft_response.schema.json >/dev/null
 
 git diff --check

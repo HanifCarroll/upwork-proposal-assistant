@@ -40,9 +40,7 @@ let saveTimer = 0;
 
 const STAGE_LABELS = {
   queued: "Queued",
-  selecting_context: "Selecting context",
-  codex_draft: "Writing draft",
-  humanizer: "Humanizer pass",
+  codex_draft: "Drafting",
   saving: "Saving audit trail",
   done: "Done",
   failed: "Failed",
@@ -50,19 +48,15 @@ const STAGE_LABELS = {
 
 const STAGE_STATUS = {
   queued: "Draft queued.",
-  selecting_context: "Selecting portfolio evidence...",
-  codex_draft: "Codex is writing the first draft...",
-  humanizer: "Running the humanizer pass...",
-  saving: "Saving the proposal and audit trail...",
+  codex_draft: "Drafting with portfolio context...",
+  saving: "Saving the draft and audit trail...",
   done: "Draft ready.",
   failed: "Draft failed.",
 };
 
 const STAGE_PROGRESS = {
   queued: 8,
-  selecting_context: 18,
-  codex_draft: 48,
-  humanizer: 78,
+  codex_draft: 55,
   saving: 92,
   done: 100,
   failed: 100,
@@ -265,7 +259,6 @@ function readRequest() {
     opportunity,
     draft_type: els.draftType.value,
     user_notes: els.notes.value.trim(),
-    proposal_style: "concise",
     style: "concise",
   };
 }
@@ -300,8 +293,11 @@ function buildAuditPayload(job, draft) {
     job_id: job.id,
     draft_id: draft.id,
     draft_type: draft.draft_type,
-    angle: draft.angle,
+    selected_angle: draft.selected_angle,
+    role_classification: draft.role_classification,
+    application_strategy: draft.application_strategy,
     selected_projects: draft.selected_projects,
+    rejected_projects: draft.rejected_projects,
     decisions: draft.decisions,
     claims: draft.claims,
     warnings: draft.warnings,
@@ -311,7 +307,7 @@ function buildAuditPayload(job, draft) {
 
 function renderDraft(job, draft) {
   const audit = JSON.stringify(buildAuditPayload(job, draft), null, 2);
-  const text = draft.primary_text || draft.proposal || draft.short_message || "";
+  const text = draft.draft_text || "";
   els.proposal.value = text;
   els.audit.textContent = audit;
   els.copy.disabled = !text;
@@ -323,7 +319,7 @@ async function persistEditableSnapshot() {
   await writeDraftState({
     phase: "editing",
     request: readRequest(),
-    proposal: els.proposal.value,
+    draft_text: els.proposal.value,
     audit: els.audit.textContent,
     error: null,
   });
@@ -393,14 +389,14 @@ async function finishDraftJob(jobId) {
   setBusy(true);
   const { job, draft } = await pollDraftJob(jobId);
   const audit = renderDraft(job, draft);
-  const outputText = draft.primary_text || draft.proposal || draft.short_message || "";
+  const outputText = draft.draft_text || "";
   await writeDraftState({
     phase: "succeeded",
     request: currentState?.request || readRequest(),
     job_id: job.id,
     job,
     result: draft,
-    proposal: outputText,
+    draft_text: outputText,
     audit,
     error: null,
     started_at: currentState?.started_at,
@@ -415,7 +411,7 @@ async function restoreDraftState(stateToRestore = null) {
 
   currentState = state;
   if (state.request) fillRequest(state.request);
-  if (state.proposal) els.proposal.value = state.proposal;
+  if (state.draft_text) els.proposal.value = state.draft_text;
   if (state.audit) els.audit.textContent = state.audit;
   els.copy.disabled = !els.proposal.value;
 
@@ -483,7 +479,7 @@ els.draft.addEventListener("click", async () => {
     await writeDraftState({
       phase: "starting",
       request,
-      proposal: "",
+      draft_text: "",
       audit: "",
       started_at: nowIso(),
       error: null,
@@ -506,7 +502,7 @@ els.draft.addEventListener("click", async () => {
 
 els.copy.addEventListener("click", async () => {
   await navigator.clipboard.writeText(els.proposal.value);
-  setStatus("Copied proposal.");
+  setStatus("Copied draft.");
 });
 
 els.settings.addEventListener("click", () => {

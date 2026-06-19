@@ -32,9 +32,9 @@ def test_safe_process_error_falls_back_without_process_output() -> None:
 
 
 def test_parse_json_message_requires_exact_json_object() -> None:
-    assert _parse_json_message('{"proposal": "ok"}') == {"proposal": "ok"}
+    assert _parse_json_message('{"draft_text": "ok"}') == {"draft_text": "ok"}
 
 
 def test_parse_json_message_rejects_wrapped_json() -> None:
     with pytest.raises(CodexProviderError, match="codex output was not JSON"):
-        _parse_json_message('Here is the JSON:\n{"proposal": "ok"}')
+        _parse_json_message('Here is the JSON:\n{"draft_text": "ok"}')

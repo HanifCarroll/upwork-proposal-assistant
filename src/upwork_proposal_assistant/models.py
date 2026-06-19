@@ -94,7 +94,6 @@ class DraftRequest(BaseModel):
     project: UpworkProject | None = None
     draft_type: DraftType = "cover_letter"
     user_notes: str = ""
-    proposal_style: str = "concise"
     style: str = "concise"
 
     @model_validator(mode="after")
@@ -143,11 +142,6 @@ class ContextBundle(BaseModel):
     projects: list[ContextProject]
 
 
-class SourceEvidence(BaseModel):
-    ref: str
-    text: str
-
-
 class AuditDecision(BaseModel):
     audit_id: str
     decision: str
@@ -173,29 +167,6 @@ class RejectedProject(BaseModel):
     caused_by: list[str] = Field(default_factory=list)
 
 
-class ContextSelectionPlan(BaseModel):
-    role_classification: str
-    selected_angle: SelectedAngle
-    selected_project_slugs: list[str] = Field(default_factory=list)
-    rejected_projects: list[RejectedProject] = Field(default_factory=list)
-    application_strategy: str
-    allowed_claims: list[ClaimTrace] = Field(default_factory=list)
-    decisions: list[AuditDecision] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-
-
-class ContextSelection(BaseModel):
-    angle: OfferAngle
-    projects: list[ContextProject]
-    source_evidence: list[SourceEvidence]
-    selection_decisions: list[AuditDecision]
-    role_classification: str = ""
-    application_strategy: str = ""
-    allowed_claims: list[ClaimTrace] = Field(default_factory=list)
-    rejected_projects: list[RejectedProject] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-
-
 class QuestionAnswer(BaseModel):
     question: str
     answer: str
@@ -203,45 +174,29 @@ class QuestionAnswer(BaseModel):
 
 
 class DraftResult(BaseModel):
-    proposal: str
-    primary_text: str = ""
+    draft_text: str
     draft_type: DraftType = "cover_letter"
     subject_line: str = ""
-    short_message: str = ""
     question_answers: list[QuestionAnswer] = Field(default_factory=list)
-    angle: str
+    selected_angle: SelectedAngle
+    role_classification: str
+    application_strategy: str
     selected_projects: list[str]
+    rejected_projects: list[RejectedProject] = Field(default_factory=list)
     decisions: list[AuditDecision]
     claims: list[ClaimTrace]
     warnings: list[str] = Field(default_factory=list)
-
-    @classmethod
-    def empty(cls) -> "DraftResult":
-        return cls(proposal="", angle="", selected_projects=[], decisions=[], claims=[], warnings=[])
 
 
 class StoredDraft(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     request: DraftRequest
-    selection: ContextSelection
-    first_pass: dict[str, Any]
-    final_pass: dict[str, Any]
+    draft: DraftResult
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
-class DraftResponse(BaseModel):
+class DraftResponse(DraftResult):
     id: str
-    proposal: str
-    primary_text: str = ""
-    draft_type: DraftType = "cover_letter"
-    subject_line: str = ""
-    short_message: str = ""
-    question_answers: list[QuestionAnswer] = Field(default_factory=list)
-    angle: str
-    selected_projects: list[str]
-    decisions: list[AuditDecision]
-    claims: list[ClaimTrace]
-    warnings: list[str] = Field(default_factory=list)
     created_at: str
 
 
@@ -272,7 +227,7 @@ class DraftJobTimings(BaseModel):
 
 
 DraftJobState = Literal["queued", "running", "succeeded", "failed"]
-DraftJobStage = Literal["queued", "selecting_context", "codex_draft", "humanizer", "saving", "done", "failed"]
+DraftJobStage = Literal["queued", "codex_draft", "saving", "done", "failed"]
 
 
 class DraftJobCreated(BaseModel):

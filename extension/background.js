@@ -26,7 +26,7 @@ async function startDraftJob(request) {
     phase: "starting",
     request,
     started_at: startedAt,
-    proposal: "",
+    draft_text: "",
     audit: "",
     error: null,
   });
@@ -50,7 +50,7 @@ async function startDraftJob(request) {
       job_id: job.id,
       job,
       started_at: startedAt,
-      proposal: "",
+      draft_text: "",
       audit: "",
       error: null,
     };
@@ -62,7 +62,7 @@ async function startDraftJob(request) {
       phase: "failed",
       request,
       started_at: startedAt,
-      proposal: "",
+      draft_text: "",
       audit: "",
       error: message,
     });

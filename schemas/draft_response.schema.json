@@ -3,27 +3,26 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "proposal",
-    "primary_text",
+    "draft_text",
     "draft_type",
     "subject_line",
-    "short_message",
     "question_answers",
-    "angle",
+    "selected_angle",
+    "role_classification",
+    "application_strategy",
     "selected_projects",
+    "rejected_projects",
     "decisions",
     "claims",
     "warnings"
   ],
   "properties": {
-    "proposal": { "type": "string" },
-    "primary_text": { "type": "string" },
+    "draft_text": { "type": "string" },
     "draft_type": {
       "type": "string",
       "enum": ["upwork_proposal", "cover_letter", "short_application_message", "question_answers"]
     },
     "subject_line": { "type": "string" },
-    "short_message": { "type": "string" },
     "question_answers": {
       "type": "array",
       "items": {
@@ -40,10 +39,41 @@
         }
       }
     },
-    "angle": { "type": "string" },
+    "selected_angle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "promise", "caused_by"],
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "promise": { "type": "string" },
+        "caused_by": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "role_classification": { "type": "string" },
+    "application_strategy": { "type": "string" },
     "selected_projects": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "rejected_projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "reason", "caused_by"],
+        "properties": {
+          "slug": { "type": "string" },
+          "reason": { "type": "string" },
+          "caused_by": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
     },
     "decisions": {
       "type": "array",

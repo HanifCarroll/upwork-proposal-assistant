@@ -2,7 +2,7 @@
 
 A local Chrome extension and Python backend for drafting auditable job applications with `codex exec`.
 
-The extension extracts the current job opportunity, lets you review it, and sends it to a local FastAPI service. The backend sends the full saved context to Codex for model-led strategy selection, asks Codex for a structured draft, and stores the cover letter/proposal with an audit trail. The extension never submits applications.
+The extension extracts the current job opportunity, lets you review it, and sends it to a local FastAPI service. The backend sends the full saved context to Codex for a structured draft with strategy and audit metadata in one pass. The extension never submits applications.
 
 This project is not affiliated with Upwork, Dice, Indeed, ZipRecruiter, Robert Half, or any other job platform.
 
@@ -14,7 +14,7 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 - Supports Upwork, Dice, Indeed, ZipRecruiter, and Robert Half.
 - Lets you edit the extracted job snapshot before drafting.
 - Uses local saved context about you: profile, service offers, and project proof points.
-- Runs two Codex passes: strategy/context selection from the full portfolio, then draft generation.
+- Runs one Codex pass over the full portfolio context to choose strategy and generate the draft.
 - Returns structured audit data for decisions, claims, source evidence, and warnings.
 - Persists draft jobs in SQLite so long Codex runs can be polled.
 - Keeps popup state in `chrome.storage.local`, so closing and reopening the popup resumes an active job.
@@ -29,9 +29,8 @@ Chrome popup
   -> adapter extracts a normalized OpportunitySnapshot
   -> background service worker starts a draft job
   -> FastAPI backend persists and runs the job
-  -> codex exec selection pass sees profile, all offers, all projects, and the opportunity
-  -> codex exec draft pass
-  -> SQLite stores request, model-selected context, first draft pass, final pass
+  -> codex exec draft pass sees profile, all offers, all projects, and the opportunity
+  -> SQLite stores request and draft JSON
   -> popup polls job status and displays draft + audit trail
 ```
 
@@ -98,7 +97,6 @@ Supported environment variables:
 | `UPWORK_PROPOSAL_CODEX_REASONING_EFFORT` | `low` | Reasoning effort passed explicitly to `codex exec`. |
 | `UPWORK_PROPOSAL_CODEX_TIMEOUT_SECONDS` | `180` | Timeout per Codex pass. |
 | `UPWORK_PROPOSAL_MAX_WORKERS` | `5` | Maximum concurrent async draft jobs. |
-| `UPWORK_PROPOSAL_HUMANIZER_SKILL` | `~/.codex/skills/humanizer` | Reserved for a future final-edit pass; the humanizer stage is currently skipped. |
 
 Example:
 
@@ -177,7 +175,6 @@ Useful local endpoints:
 Job stages:
 
 - `queued`
-- `selecting_context`
 - `codex_draft`
 - `saving`
 - `done`
@@ -191,12 +188,18 @@ Job stages:
 
 Every draft response includes:
 
+- `draft_text`: the generated application body.
+- `selected_angle`: the chosen application angle.
+- `selected_projects[]`: project proof points used in the draft.
+- `rejected_projects[]`: plausible but intentionally skipped proof points.
+- `role_classification`: the model's concrete classification of the role.
+- `application_strategy`: the drafting strategy used.
 - `decisions[]`: why the system chose an angle or proof point.
-- `claims[]`: factual claims used in the proposal.
+- `claims[]`: factual claims used in the draft.
 - `caused_by[]`: source refs that support each decision or claim.
 - `warnings[]`: issues the model surfaced during drafting.
 
-The backend stores the original request, model-selected context, first draft pass, and final draft pass. The selection record includes role classification, application strategy, selected and rejected projects, allowed claims, decisions, source evidence, and warnings. That makes it possible to trace application language back to the job snapshot, personal context, or user notes that caused it.
+The backend stores the original request and one draft JSON payload. The draft includes role classification, application strategy, selected and rejected projects, decisions, claims, and warnings. That makes it possible to trace application language back to the job snapshot, personal context, or user notes that caused it.
 
 ## Privacy And Data Retention
 
@@ -205,7 +208,7 @@ This is a local-first tool, but it does store sensitive working data.
 Stored locally:
 
 - Chrome extension state in `chrome.storage.local`: current request, job id, progress, draft text, and audit text.
-- SQLite data in `.runtime/drafts.db`: job details, user notes, model-selected context, first draft pass, final draft, and audit trail.
+- SQLite data in `.runtime/drafts.db`: job details, user notes, draft text, and audit trail.
 - Codex run workspaces in `.runtime/codex-runs/`: final JSON messages from individual Codex runs.
 - Generated context in `data/context/`: profile, offers, and project proof points derived from your configured context source.
 
@@ -215,7 +218,7 @@ Not intentionally stored or sent:
 - The backend does not call job-board APIs.
 - The project does not include analytics.
 
-Important inference note:
+Important data note:
 
 - Drafting uses `codex exec`. Job/application inputs are sent through whatever Codex/OpenAI account and runtime you have configured locally.
 

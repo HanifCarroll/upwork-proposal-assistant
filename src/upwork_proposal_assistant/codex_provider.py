@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -111,11 +110,7 @@ class CodexProvider:
 
     def _prepare_run_workspace(self) -> Path:
         run_dir = self.paths.codex_runs_dir / uuid4().hex
-        skills_dir = run_dir / ".agents" / "skills"
-        skills_dir.mkdir(parents=True, exist_ok=True)
-        target = skills_dir / "humanizer"
-        if self.paths.humanizer_skill_dir.exists() and not target.exists():
-            os.symlink(self.paths.humanizer_skill_dir, target, target_is_directory=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
 

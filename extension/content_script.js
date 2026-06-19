@@ -133,7 +133,18 @@
     return unique([
       ...jsonLdStringList(job?.skills),
       ...jsonLdStringList(job?.occupationalCategory),
+      ...diceVisibleSkillChips(),
     ]);
+  }
+
+  function diceVisibleSkillChips(root = document) {
+    const jobDetailsHeading = Array.from(root.querySelectorAll('h2')).find((node) => clean(node.textContent) === "Job Details");
+    const jobDetailsSection = jobDetailsHeading?.parentElement;
+    if (!jobDetailsSection) return [];
+    const skillsHeading = Array.from(jobDetailsSection.querySelectorAll('h3')).find((node) => clean(node.textContent) === "Skills");
+    const skillsList = skillsHeading?.nextElementSibling;
+    if (skillsList?.tagName !== "UL") return [];
+    return unique(Array.from(skillsList.querySelectorAll("li")).map((node) => clean(node.textContent || "")));
   }
 
   function opportunity(source, values) {

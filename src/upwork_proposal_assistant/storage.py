@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import sqlite3
 
-from upwork_proposal_assistant.models import ContextSelection, DraftRequest, DraftResponse, StoredDraft
+from upwork_proposal_assistant.models import DraftRequest, DraftResponse, DraftResult, StoredDraft
+
+
+EXPECTED_DRAFT_COLUMNS = {"id", "created_at", "request_json", "draft_json"}
 
 
 class DraftStore:
@@ -14,15 +16,15 @@ class DraftStore:
     def init(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
+            if self._table_columns(conn, "drafts") not in (set(), EXPECTED_DRAFT_COLUMNS):
+                conn.execute("drop table drafts")
             conn.execute(
                 """
                 create table if not exists drafts (
                     id text primary key,
                     created_at text not null,
                     request_json text not null,
-                    selection_json text not null,
-                    first_pass_json text not null,
-                    final_pass_json text not null
+                    draft_json text not null
                 )
                 """
             )
@@ -31,44 +33,35 @@ class DraftStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                insert into drafts (id, created_at, request_json, selection_json, first_pass_json, final_pass_json)
-                values (?, ?, ?, ?, ?, ?)
+                insert into drafts (id, created_at, request_json, draft_json)
+                values (?, ?, ?, ?)
                 """,
                 (
                     draft.id,
                     draft.created_at,
                     draft.request.model_dump_json(),
-                    draft.selection.model_dump_json(),
-                    json.dumps(draft.first_pass),
-                    json.dumps(draft.final_pass),
+                    draft.draft.model_dump_json(),
                 ),
             )
 
     def get_response(self, draft_id: str) -> DraftResponse | None:
         with self._connect() as conn:
             row = conn.execute(
-                "select id, created_at, final_pass_json from drafts where id = ?",
+                "select id, created_at, draft_json from drafts where id = ?",
                 (draft_id,),
             ).fetchone()
         if row is None:
             return None
-        final_pass = json.loads(str(row["final_pass_json"]))
-        primary_text = str(final_pass.get("primary_text") or final_pass.get("proposal", ""))
+        draft = DraftResult.model_validate_json(str(row["draft_json"]))
         return DraftResponse(
+            **draft.model_dump(),
             id=str(row["id"]),
-            proposal=str(final_pass.get("proposal") or primary_text),
-            primary_text=primary_text,
-            draft_type=final_pass.get("draft_type", "cover_letter"),
-            subject_line=str(final_pass.get("subject_line", "")),
-            short_message=str(final_pass.get("short_message", "")),
-            question_answers=final_pass.get("question_answers", []),
-            angle=str(final_pass.get("angle", "")),
-            selected_projects=[str(item) for item in final_pass.get("selected_projects", [])],
-            decisions=final_pass.get("decisions", []),
-            claims=final_pass.get("claims", []),
-            warnings=[str(item) for item in final_pass.get("warnings", [])],
             created_at=str(row["created_at"]),
         )
+
+    def _table_columns(self, conn: sqlite3.Connection, table: str) -> set[str]:
+        rows = conn.execute(f"pragma table_info({table})").fetchall()
+        return {str(row["name"]) for row in rows}
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -78,8 +71,6 @@ class DraftStore:
 
 def make_stored_draft(
     request: DraftRequest,
-    selection: ContextSelection,
-    first_pass: dict[str, object],
-    final_pass: dict[str, object],
+    draft: dict[str, object],
 ) -> StoredDraft:
-    return StoredDraft(request=request, selection=selection, first_pass=first_pass, final_pass=final_pass)
+    return StoredDraft(request=request, draft=DraftResult.model_validate(draft))

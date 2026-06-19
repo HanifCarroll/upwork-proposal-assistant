@@ -11,19 +11,16 @@ from upwork_proposal_assistant.codex_provider import CodexProvider
 from upwork_proposal_assistant.models import (
     CodexRunTiming,
     ContextBundle,
-    ContextSelection,
-    ContextSelectionPlan,
     DraftJobStage,
     DraftRequest,
     StageTiming,
     StoredDraft,
 )
-from upwork_proposal_assistant.prompts import build_draft_prompt, build_selection_prompt
-from upwork_proposal_assistant.selector import selection_from_plan
+from upwork_proposal_assistant.prompts import build_draft_prompt
 from upwork_proposal_assistant.storage import DraftStore, make_stored_draft
 
 
-StageCallback = Callable[[DraftJobStage, ContextSelection | None], None]
+StageCallback = Callable[[DraftJobStage], None]
 StageTimingCallback = Callable[[DraftJobStage, StageTiming], None]
 CodexTimingCallback = Callable[[CodexRunTiming], None]
 
@@ -31,7 +28,6 @@ CodexTimingCallback = Callable[[CodexRunTiming], None]
 @dataclass(frozen=True)
 class DraftPipelineResult:
     stored: StoredDraft
-    selection: ContextSelection
 
 
 def run_draft_pipeline(
@@ -43,52 +39,31 @@ def run_draft_pipeline(
     on_stage_timing: StageTimingCallback | None = None,
     on_codex_timing: CodexTimingCallback | None = None,
 ) -> DraftPipelineResult:
-    with _timed_stage("selecting_context", None, on_stage, on_stage_timing):
-        selection_raw = codex.generate(
-            build_selection_prompt(request, context),
-            phase="context_selection",
-            on_timing=on_codex_timing,
-            schema_path=codex.paths.selection_schema_path,
-        )
-        selection_plan = ContextSelectionPlan.model_validate(selection_raw)
-        selection = selection_from_plan(context, request, selection_plan)
-
-    with _timed_stage("codex_draft", selection, on_stage, on_stage_timing):
-        first_pass = codex.generate(
-            build_draft_prompt(request, selection, context.profile),
+    with _timed_stage("codex_draft", on_stage, on_stage_timing):
+        draft = codex.generate(
+            build_draft_prompt(request, context),
             phase="draft",
             on_timing=on_codex_timing,
         )
 
-    final_pass = first_pass
-    # Humanizer is paused while first-pass cover-letter quality is evaluated.
-    # Re-enable this block when the real humanizer skill is ready to own the final edit.
-    # with _timed_stage("humanizer", selection, on_stage, on_stage_timing):
-    #     final_pass = codex.generate(
-    #         build_humanizer_prompt(first_pass, selection),
-    #         phase="humanizer",
-    #         on_timing=on_codex_timing,
-    #     )
-
-    with _timed_stage("saving", selection, on_stage, on_stage_timing):
-        stored = make_stored_draft(request, selection, first_pass, final_pass)
+    with _timed_stage("saving", on_stage, on_stage_timing):
+        stored = make_stored_draft(request, draft)
         store.insert(stored)
-    return DraftPipelineResult(stored=stored, selection=selection)
+    return DraftPipelineResult(stored=stored)
 
 
-def _notify(callback: StageCallback | None, stage: DraftJobStage, selection: ContextSelection | None) -> None:
+def _notify(callback: StageCallback | None, stage: DraftJobStage) -> None:
     if callback is not None:
-        callback(stage, selection)
+        callback(stage)
 
 
 @contextmanager
 def _timed_stage(
     stage: DraftJobStage,
-    selection: ContextSelection | None,
     on_stage: StageCallback | None,
     on_stage_timing: StageTimingCallback | None,
 ) -> Iterator[None]:
-    _notify(on_stage, stage, selection)
+    _notify(on_stage, stage)
     started_at = _utc_now_iso()
     started = perf_counter()
     try:

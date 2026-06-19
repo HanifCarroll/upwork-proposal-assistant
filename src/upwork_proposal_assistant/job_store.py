@@ -9,7 +9,6 @@ from pydantic import BaseModel
 
 from upwork_proposal_assistant.models import (
     CodexRunTiming,
-    ContextSelection,
     DraftJobCreated,
     DraftJobStage,
     DraftJobState,
@@ -17,6 +16,19 @@ from upwork_proposal_assistant.models import (
     DraftRequest,
     StageTiming,
 )
+
+
+EXPECTED_DRAFT_JOB_COLUMNS = {
+    "id",
+    "status",
+    "stage",
+    "request_json",
+    "result_draft_id",
+    "error",
+    "timing_json",
+    "created_at",
+    "updated_at",
+}
 
 
 def utc_now_iso() -> str:
@@ -28,7 +40,6 @@ class DraftJobRecord(BaseModel):
     status: DraftJobState
     stage: DraftJobStage
     request: DraftRequest
-    selection: ContextSelection | None = None
     result_draft_id: str | None = None
     error: str | None = None
     timings: DraftJobTimings
@@ -43,6 +54,8 @@ class DraftJobStore:
     def init(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
+            if self._table_columns(conn, "draft_jobs") not in (set(), EXPECTED_DRAFT_JOB_COLUMNS):
+                conn.execute("drop table draft_jobs")
             conn.execute(
                 """
                 create table if not exists draft_jobs (
@@ -50,7 +63,6 @@ class DraftJobStore:
                     status text not null,
                     stage text not null,
                     request_json text not null,
-                    selection_json text,
                     result_draft_id text,
                     error text,
                     timing_json text,
@@ -59,7 +71,6 @@ class DraftJobStore:
                 )
                 """
             )
-            self._ensure_column(conn, "draft_jobs", "timing_json", "text")
 
     def create(self, request: DraftRequest) -> DraftJobCreated:
         job_id = uuid4().hex
@@ -68,9 +79,9 @@ class DraftJobStore:
             conn.execute(
                 """
                 insert into draft_jobs (
-                    id, status, stage, request_json, selection_json, result_draft_id, error, timing_json, created_at, updated_at
+                    id, status, stage, request_json, result_draft_id, error, timing_json, created_at, updated_at
                 )
-                values (?, ?, ?, ?, null, null, null, ?, ?, ?)
+                values (?, ?, ?, ?, null, null, ?, ?, ?)
                 """,
                 (job_id, "queued", "queued", request.model_dump_json(), DraftJobTimings().model_dump_json(), now, now),
             )
@@ -88,17 +99,6 @@ class DraftJobStore:
             conn.execute(
                 "update draft_jobs set status = ?, stage = ?, updated_at = ? where id = ?",
                 ("running", stage, utc_now_iso(), job_id),
-            )
-
-    def save_selection(self, job_id: str, selection: ContextSelection, stage: DraftJobStage) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                update draft_jobs
-                set status = ?, stage = ?, selection_json = ?, updated_at = ?
-                where id = ?
-                """,
-                ("running", stage, selection.model_dump_json(), utc_now_iso(), job_id),
             )
 
     def complete(self, job_id: str, draft_id: str) -> None:
@@ -119,7 +119,7 @@ class DraftJobStore:
                 return
             timings = self._timings_from_json(row["timing_json"])
             timings.stages[stage] = timing
-            if stage == "selecting_context":
+            if stage == "codex_draft":
                 timings.queue_ms = _duration_between_ms(str(row["created_at"]), timing.started_at)
             conn.execute(
                 "update draft_jobs set timing_json = ?, updated_at = ? where id = ?",
@@ -161,14 +161,11 @@ class DraftJobStore:
             )
 
     def _record_from_row(self, row: sqlite3.Row) -> DraftJobRecord:
-        selection_json = row["selection_json"]
-        selection = ContextSelection.model_validate_json(str(selection_json)) if selection_json is not None else None
         return DraftJobRecord(
             id=str(row["id"]),
             status=row["status"],
             stage=row["stage"],
             request=DraftRequest.model_validate_json(str(row["request_json"])),
-            selection=selection,
             result_draft_id=str(row["result_draft_id"]) if row["result_draft_id"] is not None else None,
             error=str(row["error"]) if row["error"] is not None else None,
             timings=self._timings_from_json(row["timing_json"]),
@@ -181,11 +178,9 @@ class DraftJobStore:
             return DraftJobTimings()
         return DraftJobTimings.model_validate_json(str(raw))
 
-    def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, column_type: str) -> None:
+    def _table_columns(self, conn: sqlite3.Connection, table: str) -> set[str]:
         rows = conn.execute(f"pragma table_info({table})").fetchall()
-        existing = {str(row["name"]) for row in rows}
-        if column not in existing:
-            conn.execute(f"alter table {table} add column {column} {column_type}")
+        return {str(row["name"]) for row in rows}
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)

@@ -29,13 +29,11 @@ class AppPaths:
     runtime_dir: Path = env_path("UPWORK_PROPOSAL_RUNTIME_DIR", REPO_ROOT / ".runtime")
     db_path: Path = env_path("UPWORK_PROPOSAL_DB_PATH", REPO_ROOT / ".runtime" / "drafts.db")
     codex_runs_dir: Path = env_path("UPWORK_PROPOSAL_CODEX_RUNS_DIR", REPO_ROOT / ".runtime" / "codex-runs")
-    humanizer_skill_dir: Path = env_path("UPWORK_PROPOSAL_HUMANIZER_SKILL", Path("~/.codex/skills/humanizer"))
     codex_binary: str = os.environ.get("UPWORK_PROPOSAL_CODEX_BINARY", "codex")
     codex_model: str = os.environ.get("UPWORK_PROPOSAL_CODEX_MODEL", "gpt-5.5")
     codex_reasoning_effort: str = os.environ.get("UPWORK_PROPOSAL_CODEX_REASONING_EFFORT", "low")
     codex_timeout_seconds: int = env_int("UPWORK_PROPOSAL_CODEX_TIMEOUT_SECONDS", 180)
     max_workers: int = env_int("UPWORK_PROPOSAL_MAX_WORKERS", 5)
-    selection_schema_path: Path = REPO_ROOT / "schemas" / "context_selection.schema.json"
     draft_schema_path: Path = REPO_ROOT / "schemas" / "draft_response.schema.json"
 
     def ensure_runtime(self) -> None:

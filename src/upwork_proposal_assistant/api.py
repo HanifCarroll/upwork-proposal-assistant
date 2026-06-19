@@ -48,7 +48,6 @@ def create_app() -> FastAPI:
         return {
             "ok": True,
             "project_count": len(context.projects),
-            "humanizer_skill": str(paths.humanizer_skill_dir),
             "max_workers": paths.max_workers,
         }
 

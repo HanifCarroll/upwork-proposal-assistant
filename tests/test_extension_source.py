@@ -61,11 +61,18 @@ def test_dice_extraction_does_not_send_page_wide_text() -> None:
     assert "raw_text" not in dice_block
     assert "job?.description" in dice_block
     assert "title: clean(job?.title)" in dice_block
+    assert "...diceVisibleSkillChips()" in content_script
+    assert 'clean(node.textContent) === "Job Details"' in content_script
+    assert 'clean(node.textContent) === "Skills"' in content_script
+    assert 'skillsList?.tagName !== "UL"' in content_script
     assert "company_context: diceCompanyContext(company)" in dice_block
     assert '"Company Info"' in content_script
     assert "`About ${company}`" in content_script
     assert '[data-testid="richTextElement"]' in content_script
     assert 'firstText(["h1"])' not in dice_block
+    assert ".rounded-3xl" not in dice_block
+    assert "Python" not in dice_block
+    assert "Mapbox or ESRI" not in dice_block
 
 
 def test_popup_uses_unified_source_aware_snapshot_form() -> None:
@@ -95,6 +102,13 @@ def test_popup_uses_unified_source_aware_snapshot_form() -> None:
     assert 'id="budget"' not in popup_html
     assert "syncSourceFields" in popup_js
     assert "company_context: companyContext" in popup_js
+    assert 'codex_draft: "Drafting"' in popup_js
+    assert 'codex_draft: "Drafting with portfolio context..."' in popup_js
+    assert "draft.draft_text" in popup_js
+    assert "draft.primary_text" not in popup_js
+    assert "draft.proposal" not in popup_js
+    assert "selecting_context" not in popup_js
+    assert "humanizer" not in popup_js
     assert "extractionConfidence" not in popup_js
     assert "extraction_confidence" not in popup_js
     assert "source_text" not in popup_js

@@ -10,7 +10,6 @@ from upwork_proposal_assistant.job_store import DraftJobRecord, DraftJobStore
 from upwork_proposal_assistant.models import (
     CodexRunTiming,
     ContextBundle,
-    ContextSelection,
     DraftJobCreated,
     DraftJobStage,
     DraftJobStatus,
@@ -53,7 +52,7 @@ class DraftJobRunner:
                 context=self.context,
                 codex=self.codex,
                 store=self.draft_store,
-                on_stage=lambda stage, selection: self._record_stage(job_id, stage, selection),
+                on_stage=lambda stage: self._record_stage(job_id, stage),
                 on_stage_timing=lambda stage, timing: self._record_stage_timing(job_id, stage, timing),
                 on_codex_timing=lambda timing: self._record_codex_timing(job_id, timing),
             )
@@ -62,11 +61,8 @@ class DraftJobRunner:
             logger.exception("Draft job failed: %s", job_id)
             self.job_store.fail(job_id, str(exc) or exc.__class__.__name__)
 
-    def _record_stage(self, job_id: str, stage: DraftJobStage, selection: ContextSelection | None) -> None:
-        if selection is None:
-            self.job_store.update_stage(job_id, stage)
-            return
-        self.job_store.save_selection(job_id, selection, stage)
+    def _record_stage(self, job_id: str, stage: DraftJobStage) -> None:
+        self.job_store.update_stage(job_id, stage)
 
     def _record_stage_timing(self, job_id: str, stage: DraftJobStage, timing: StageTiming) -> None:
         self.job_store.record_stage_timing(job_id, stage, timing)
@@ -77,8 +73,8 @@ class DraftJobRunner:
 
 def build_job_status(record: DraftJobRecord, draft_store: DraftStore) -> DraftJobStatus:
     result = draft_store.get_response(record.result_draft_id) if record.result_draft_id is not None else None
-    selected_angle = record.selection.angle.label if record.selection is not None else ""
-    selected_projects = [project.slug for project in record.selection.projects] if record.selection is not None else []
+    selected_angle = result.selected_angle.label if result is not None else ""
+    selected_projects = result.selected_projects if result is not None else []
     return DraftJobStatus(
         id=record.id,
         status=record.status,

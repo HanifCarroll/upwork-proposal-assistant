@@ -31,46 +31,10 @@ class FakeCodex:
         schema_path: Path | None = None,
     ) -> dict[str, object]:
         self.calls.append((phase, prompt, schema_path))
-        if phase == "context_selection":
-            return {
-                "role_classification": "frontend staff augmentation",
-                "selected_angle": {
-                    "key": "frontend_staff_augmentation",
-                    "label": "Frontend staff augmentation",
-                    "promise": "Add dependable TypeScript, React, and Next.js capacity inside the existing team.",
-                    "caused_by": ["opportunity.description", "opportunity.skills", "profile"],
-                },
-                "selected_project_slugs": ["genrupt"],
-                "rejected_projects": [
-                    {
-                        "slug": "mucho-hangouts",
-                        "reason": "Relevant React proof, but weaker than Genrupt for Next.js-specific work.",
-                        "caused_by": ["project.mucho-hangouts.technologies", "project.genrupt.technologies"],
-                    }
-                ],
-                "application_strategy": "Lead with hands-on frontend execution for an existing team, not MVP launch work.",
-                "allowed_claims": [
-                    {
-                        "text": "Hanif has production Next.js and TypeScript experience from Genrupt.",
-                        "caused_by": ["project.genrupt.technologies", "project.genrupt.solution"],
-                    }
-                ],
-                "decisions": [
-                    {
-                        "audit_id": "model-select-role",
-                        "decision": "Classify this as frontend staff augmentation.",
-                        "caused_by": ["opportunity.description"],
-                        "rationale": "The role asks for one additional hands-on frontend resource on an existing team.",
-                    }
-                ],
-                "warnings": [],
-            }
-        if phase == "draft":
-            return _draft_json("Draft from frontend staff augmentation.")
-        return _draft_json("Humanized frontend staff augmentation.")
+        return _draft_json("Draft from frontend staff augmentation.")
 
 
-def test_pipeline_uses_model_led_context_selection(tmp_path: Path) -> None:
+def test_pipeline_uses_single_full_context_draft_pass(tmp_path: Path) -> None:
     paths = AppPaths(runtime_dir=tmp_path, codex_runs_dir=tmp_path / "codex-runs")
     codex = FakeCodex(paths)
     store = DraftStore(tmp_path / "drafts.db")
@@ -100,18 +64,17 @@ def test_pipeline_uses_model_led_context_selection(tmp_path: Path) -> None:
         store=store,
     )
 
-    assert [call[0] for call in codex.calls] == ["context_selection", "draft"]
-    assert codex.calls[0][2] == paths.selection_schema_path
+    assert [call[0] for call in codex.calls] == ["draft"]
+    assert codex.calls[0][2] is None
+    assert '"available_offers"' in codex.calls[0][1]
     assert '"available_projects"' in codex.calls[0][1]
     assert "mucho-hangouts" in codex.calls[0][1]
     assert "source_text" not in codex.calls[0][1]
     assert "unrelated page chrome" not in codex.calls[0][1]
-    assert result.stored.first_pass["proposal"] == "Draft from frontend staff augmentation."
-    assert result.stored.final_pass["proposal"] == "Draft from frontend staff augmentation."
-    assert result.selection.angle.key == "frontend_staff_augmentation"
-    assert [project.slug for project in result.selection.projects] == ["genrupt"]
-    assert result.selection.role_classification == "frontend staff augmentation"
-    assert result.selection.rejected_projects[0].slug == "mucho-hangouts"
+    assert result.stored.draft.draft_text == "Draft from frontend staff augmentation."
+    assert result.stored.draft.selected_angle.key == "frontend_staff_augmentation"
+    assert result.stored.draft.selected_projects == ["genrupt"]
+    assert result.stored.draft.rejected_projects[0].slug == "mucho-hangouts"
 
 
 def _context_bundle() -> ContextBundle:
@@ -161,14 +124,26 @@ def _context_bundle() -> ContextBundle:
 
 def _draft_json(text: str) -> dict[str, object]:
     return {
-        "proposal": text,
-        "primary_text": text,
+        "draft_text": text,
         "draft_type": "cover_letter",
         "subject_line": "",
-        "short_message": "",
         "question_answers": [],
-        "angle": "Frontend staff augmentation",
+        "selected_angle": {
+            "key": "frontend_staff_augmentation",
+            "label": "Frontend staff augmentation",
+            "promise": "Add dependable TypeScript, React, and Next.js capacity inside the existing team.",
+            "caused_by": ["opportunity.description", "opportunity.skills", "profile"],
+        },
+        "role_classification": "frontend staff augmentation",
+        "application_strategy": "Lead with hands-on frontend execution for an existing team, not MVP launch work.",
         "selected_projects": ["genrupt"],
+        "rejected_projects": [
+            {
+                "slug": "mucho-hangouts",
+                "reason": "Relevant React proof, but weaker than Genrupt for Next.js-specific work.",
+                "caused_by": ["project.mucho-hangouts.technologies", "project.genrupt.technologies"],
+            }
+        ],
         "decisions": [],
         "claims": [],
         "warnings": [],
