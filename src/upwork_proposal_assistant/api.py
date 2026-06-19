@@ -23,7 +23,13 @@ def create_app() -> FastAPI:
     job_store.fail_active("Server restarted before this draft job completed.")
     context = ensure_context(paths.portfolio_root, paths.context_dir)
     codex = CodexProvider(paths)
-    runner = DraftJobRunner(context=context, codex=codex, draft_store=store, job_store=job_store)
+    runner = DraftJobRunner(
+        context=context,
+        codex=codex,
+        draft_store=store,
+        job_store=job_store,
+        max_workers=paths.max_workers,
+    )
 
     app = FastAPI(title="Application Draft Assistant", version="0.1.0")
     app.add_middleware(
@@ -43,6 +49,7 @@ def create_app() -> FastAPI:
             "ok": True,
             "project_count": len(context.projects),
             "humanizer_skill": str(paths.humanizer_skill_dir),
+            "max_workers": paths.max_workers,
         }
 
     @app.post("/context/reindex")

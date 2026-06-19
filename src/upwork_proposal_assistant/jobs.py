@@ -30,12 +30,13 @@ class DraftJobRunner:
         codex: CodexProvider,
         draft_store: DraftStore,
         job_store: DraftJobStore,
+        max_workers: int,
     ) -> None:
         self.context = context
         self.codex = codex
         self.draft_store = draft_store
         self.job_store = job_store
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="upwork-draft")
+        self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="upwork-draft")
 
     def enqueue(self, request: DraftRequest) -> DraftJobCreated:
         job = self.job_store.create(request)

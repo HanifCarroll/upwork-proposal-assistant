@@ -34,6 +34,7 @@ class AppPaths:
     codex_model: str = os.environ.get("UPWORK_PROPOSAL_CODEX_MODEL", "gpt-5.5")
     codex_reasoning_effort: str = os.environ.get("UPWORK_PROPOSAL_CODEX_REASONING_EFFORT", "xhigh")
     codex_timeout_seconds: int = env_int("UPWORK_PROPOSAL_CODEX_TIMEOUT_SECONDS", 180)
+    max_workers: int = env_int("UPWORK_PROPOSAL_MAX_WORKERS", 5)
     draft_schema_path: Path = REPO_ROOT / "schemas" / "draft_response.schema.json"
 
     def ensure_runtime(self) -> None:

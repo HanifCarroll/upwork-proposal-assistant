@@ -99,6 +99,7 @@ Supported environment variables:
 | `UPWORK_PROPOSAL_CODEX_MODEL` | `gpt-5.5` | Model passed explicitly to `codex exec`. |
 | `UPWORK_PROPOSAL_CODEX_REASONING_EFFORT` | `xhigh` | Reasoning effort passed explicitly to `codex exec`. |
 | `UPWORK_PROPOSAL_CODEX_TIMEOUT_SECONDS` | `180` | Timeout per Codex pass. |
+| `UPWORK_PROPOSAL_MAX_WORKERS` | `5` | Maximum concurrent async draft jobs. |
 | `UPWORK_PROPOSAL_HUMANIZER_SKILL` | `~/.codex/skills/humanizer` | Skill directory symlinked into Codex run workspaces. |
 
 Example:
