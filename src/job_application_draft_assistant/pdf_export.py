@@ -21,6 +21,7 @@ from job_application_draft_assistant.models import PdfExportResponse, StoredDraf
 
 STANDARD_SIGNOFF = "Best,\nHanif Carroll"
 PAGE_HORIZONTAL_MARGIN = 0.78 * inch
+LETTERHEAD_RULE_WIDTH = 5.1 * inch
 LETTER_BODY_RIGHT_INDENT = 2.04 * inch
 
 
@@ -124,7 +125,15 @@ def _render_pdf(stored: StoredDraft, header: ResumeHeader, pdf_path: Path) -> No
     if header.contacts:
         story.append(Paragraph(_contacts_markup(header.contacts), styles["contact"]))
     story.append(Spacer(1, 8))
-    story.append(HRFlowable(width="100%", thickness=0.6, color=colors.HexColor("#6f7a74"), spaceAfter=16))
+    story.append(
+        HRFlowable(
+            width=LETTERHEAD_RULE_WIDTH,
+            thickness=0.6,
+            color=colors.HexColor("#6f7a74"),
+            spaceAfter=16,
+            hAlign="LEFT",
+        )
+    )
     story.append(Indenter(right=LETTER_BODY_RIGHT_INDENT))
 
     date_text = _date_text(stored.created_at)
