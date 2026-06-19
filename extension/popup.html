@@ -29,9 +29,20 @@
         </div>
       </div>
 
+      <div class="grid">
+        <label>
+          Source
+          <input id="source" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Remote status
+          <input id="remote-status" type="text" autocomplete="off" />
+        </label>
+      </div>
+
       <label>
-        Source
-        <input id="source" type="text" autocomplete="off" />
+        Source URL
+        <input id="source-url" type="text" autocomplete="off" />
       </label>
 
       <label>
@@ -50,21 +61,56 @@
         </label>
       </div>
 
-      <label>
-        Description
-        <textarea id="description" rows="7"></textarea>
-      </label>
-
       <div class="grid">
         <label>
-          Compensation
-          <input id="budget" type="text" autocomplete="off" />
+          Employment type
+          <input id="employment-type" type="text" autocomplete="off" />
         </label>
         <label>
           Skills
           <input id="skills" type="text" autocomplete="off" />
         </label>
       </div>
+
+      <label>
+        Description
+        <textarea id="description" rows="7"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#company-context">
+        Company context
+        <textarea id="company-context" rows="4"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#recruiter-context">
+        Client / recruiter context
+        <textarea id="recruiter-context" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#responsibilities">
+        Responsibilities
+        <textarea id="responsibilities" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#requirements">
+        Requirements
+        <textarea id="requirements" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#nice-to-haves">
+        Nice-to-haves
+        <textarea id="nice-to-haves" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#questions">
+        Application questions
+        <textarea id="questions" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#warnings">
+        Extraction warnings
+        <textarea id="warnings" rows="2" readonly></textarea>
+      </label>
 
       <label>
         Draft type

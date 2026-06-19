@@ -1,19 +1,34 @@
 from __future__ import annotations
 
-from upwork_proposal_assistant.models import OpportunitySnapshot
+import json
+
+import pytest
+from pydantic import ValidationError
+
+from upwork_proposal_assistant.models import OpportunitySnapshot, UpworkProject
 
 
-def test_opportunity_snapshot_ignores_removed_raw_text_field() -> None:
+def test_opportunity_snapshot_discards_obsolete_freeform_fields() -> None:
     snapshot = OpportunitySnapshot.model_validate(
         {
             "title": "Frontend contractor",
             "description": "React and TypeScript work.",
             "raw_text": "Old page-wide text should not reach prompts.",
+            "source_text": "Flattened source text should not reach prompts.",
+            "extraction_confidence": "high",
         }
     )
 
     assert "raw_text" not in snapshot.model_dump()
+    assert "source_text" not in snapshot.model_dump()
+    assert "extraction_confidence" not in snapshot.model_dump()
     assert "Old page-wide text" not in snapshot.search_text()
+    assert "Flattened source text" not in snapshot.search_text()
+
+
+def test_opportunity_snapshot_rejects_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        OpportunitySnapshot.model_validate({"title": "Frontend contractor", "page_blob": "unsupported"})
 
 
 def test_opportunity_snapshot_search_text_includes_company_context() -> None:
@@ -24,3 +39,14 @@ def test_opportunity_snapshot_search_text_includes_company_context() -> None:
     )
 
     assert "Sonitalent Corp is a global IT services company." in snapshot.search_text()
+
+
+def test_upwork_project_budget_is_not_promoted_to_opportunity_context() -> None:
+    opportunity = UpworkProject(
+        title="Build a React dashboard",
+        description="Need a clean frontend implementation.",
+        budget="$1,000 fixed price",
+    ).to_opportunity()
+
+    assert "$1,000" not in json.dumps(opportunity.model_dump())
+    assert "$1,000" not in opportunity.search_text()

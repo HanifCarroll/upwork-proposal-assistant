@@ -9,12 +9,21 @@ const els = {
   draft: document.querySelector("#draft"),
   copy: document.querySelector("#copy"),
   source: document.querySelector("#source"),
+  sourceUrl: document.querySelector("#source-url"),
   title: document.querySelector("#title"),
   company: document.querySelector("#company"),
   location: document.querySelector("#location"),
   description: document.querySelector("#description"),
-  budget: document.querySelector("#budget"),
   skills: document.querySelector("#skills"),
+  employmentType: document.querySelector("#employment-type"),
+  remoteStatus: document.querySelector("#remote-status"),
+  companyContext: document.querySelector("#company-context"),
+  recruiterContext: document.querySelector("#recruiter-context"),
+  responsibilities: document.querySelector("#responsibilities"),
+  requirements: document.querySelector("#requirements"),
+  niceToHaves: document.querySelector("#nice-to-haves"),
+  questions: document.querySelector("#questions"),
+  warnings: document.querySelector("#warnings"),
   draftType: document.querySelector("#draft-type"),
   notes: document.querySelector("#notes"),
   proposal: document.querySelector("#proposal"),
@@ -143,8 +152,12 @@ function opportunitySourceUrl(opportunity) {
   return opportunity?.source_url || opportunity?.url || "";
 }
 
-function cleanJoined(values) {
-  return values.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+function listToText(values) {
+  return (values || []).join("\n");
+}
+
+function textToList(value) {
+  return value.split(/\n+/).map((item) => item.trim()).filter(Boolean);
 }
 
 function clearDraftOutput() {
@@ -189,18 +202,22 @@ async function captureActivePage({ statusText = "Review the current page snapsho
 
 function fillOpportunity(opportunity) {
   els.source.value = opportunity.source || "";
+  els.sourceUrl.value = opportunity.source_url || opportunity.url || "";
   els.title.value = opportunity.title || "";
   els.company.value = opportunity.company || "";
   els.location.value = opportunity.location || "";
   els.description.value = opportunity.description || "";
-  els.budget.value = opportunity.compensation || opportunity.budget || "";
   els.skills.value = (opportunity.skills || []).join(", ");
-  els.title.dataset.url = opportunity.source_url || opportunity.url || "";
-  els.title.dataset.remoteStatus = opportunity.remote_status || "";
-  els.title.dataset.employmentType = opportunity.employment_type || "";
-  els.title.dataset.companyContext = opportunity.company_context || "";
-  els.title.dataset.questions = JSON.stringify(opportunity.application_questions || []);
-  els.title.dataset.warnings = JSON.stringify(opportunity.extraction_warnings || []);
+  els.employmentType.value = opportunity.employment_type || "";
+  els.remoteStatus.value = opportunity.remote_status || "";
+  els.companyContext.value = opportunity.company_context || "";
+  els.recruiterContext.value = opportunity.recruiter_or_client_context || opportunity.client_context || "";
+  els.responsibilities.value = listToText(opportunity.responsibilities);
+  els.requirements.value = listToText(opportunity.requirements);
+  els.niceToHaves.value = listToText(opportunity.nice_to_haves);
+  els.questions.value = listToText(opportunity.application_questions);
+  els.warnings.value = listToText(opportunity.extraction_warnings);
+  syncSourceFields();
   if (opportunity.source === "upwork") {
     els.draftType.value = "upwork_proposal";
   } else if ((opportunity.application_questions || []).length > 0) {
@@ -218,36 +235,30 @@ function fillRequest(request) {
 
 function readRequest() {
   const skills = els.skills.value.split(",").map((skill) => skill.trim()).filter(Boolean);
-  const questions = JSON.parse(els.title.dataset.questions || "[]");
-  const warnings = JSON.parse(els.title.dataset.warnings || "[]");
-  const companyContext = els.title.dataset.companyContext || "";
+  const responsibilities = textToList(els.responsibilities.value);
+  const requirements = textToList(els.requirements.value);
+  const niceToHaves = textToList(els.niceToHaves.value);
+  const questions = textToList(els.questions.value);
+  const warnings = textToList(els.warnings.value);
+  const companyContext = els.companyContext.value.trim();
+  const recruiterContext = els.recruiterContext.value.trim();
   const opportunity = {
     source: els.source.value.trim() || "manual",
-    source_url: els.title.dataset.url || "",
+    source_url: els.sourceUrl.value.trim(),
     captured_at: new Date().toISOString(),
     title: els.title.value.trim(),
     company: els.company.value.trim(),
     location: els.location.value.trim(),
-    compensation: els.budget.value.trim(),
-    employment_type: els.title.dataset.employmentType || "",
-    remote_status: els.title.dataset.remoteStatus || "",
+    employment_type: els.employmentType.value.trim(),
+    remote_status: els.remoteStatus.value.trim(),
     description: els.description.value.trim(),
+    responsibilities,
+    requirements,
+    nice_to_haves: niceToHaves,
     skills,
     application_questions: questions,
     company_context: companyContext,
-    recruiter_or_client_context: [els.company.value.trim(), els.location.value.trim()].filter(Boolean).join(" | "),
-    source_text: cleanJoined([
-      els.title.value.trim(),
-      els.company.value.trim(),
-      els.location.value.trim(),
-      els.budget.value.trim(),
-      els.title.dataset.employmentType || "",
-      els.title.dataset.remoteStatus || "",
-      els.description.value.trim(),
-      skills.join(" "),
-      companyContext,
-    ]),
-    extraction_confidence: warnings.length ? "medium" : "high",
+    recruiter_or_client_context: recruiterContext,
     extraction_warnings: warnings,
   };
   return {
@@ -257,6 +268,13 @@ function readRequest() {
     proposal_style: "concise",
     style: "concise",
   };
+}
+
+function syncSourceFields() {
+  document.querySelectorAll("[data-show-when-filled]").forEach((element) => {
+    const input = document.querySelector(element.dataset.showWhenFilled || "");
+    element.classList.toggle("is-hidden", !input?.value.trim());
+  });
 }
 
 async function currentPageRequest() {
@@ -495,9 +513,11 @@ els.settings.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
-[els.source, els.title, els.company, els.location, els.description, els.budget, els.skills, els.draftType, els.notes].forEach((element) => {
+[els.source, els.sourceUrl, els.title, els.company, els.location, els.description, els.skills, els.employmentType, els.remoteStatus, els.companyContext, els.recruiterContext, els.responsibilities, els.requirements, els.niceToHaves, els.questions, els.draftType, els.notes].forEach((element) => {
   element.addEventListener("input", scheduleEditableSnapshot);
+  element.addEventListener("input", syncSourceFields);
   element.addEventListener("change", scheduleEditableSnapshot);
+  element.addEventListener("change", syncSourceFields);
 });
 
 async function initializePopup() {

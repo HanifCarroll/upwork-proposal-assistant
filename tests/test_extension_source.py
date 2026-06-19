@@ -31,6 +31,15 @@ def test_extension_has_no_stale_compatibility_path() -> None:
     assert "document.title" not in content_script
     assert "raw_text" not in content_script
     assert "raw_text" not in popup
+    assert "source_text" not in content_script
+    assert "source_text" not in popup
+    assert "sourceText" not in popup
+    assert "source-text" not in popup
+    assert "extraction_confidence" not in content_script
+    assert "extraction_confidence" not in popup
+    assert "Compensation" not in popup
+    assert 'id="budget"' not in popup
+    assert "salaryFromJsonLd" not in content_script
     assert "value.description" not in content_script
     assert '"h1"' not in content_script
     assert '"h2"' not in content_script
@@ -57,3 +66,36 @@ def test_dice_extraction_does_not_send_page_wide_text() -> None:
     assert "`About ${company}`" in content_script
     assert '[data-testid="richTextElement"]' in content_script
     assert 'firstText(["h1"])' not in dice_block
+
+
+def test_popup_uses_unified_source_aware_snapshot_form() -> None:
+    popup_html = (REPO_ROOT / "extension" / "popup.html").read_text(encoding="utf-8")
+    popup_js = (REPO_ROOT / "extension" / "popup.js").read_text(encoding="utf-8")
+
+    for field_id in [
+        "source-url",
+        "employment-type",
+        "remote-status",
+        "company-context",
+        "recruiter-context",
+        "responsibilities",
+        "requirements",
+        "nice-to-haves",
+        "questions",
+        "warnings",
+    ]:
+        assert f'id="{field_id}"' in popup_html
+
+    assert "Page context sent to model" not in popup_html
+    assert "context-panel" not in popup_html
+    assert "Dice context" not in popup_html
+    assert "Extraction confidence" not in popup_html
+    assert 'id="extraction-confidence"' not in popup_html
+    assert "Compensation" not in popup_html
+    assert 'id="budget"' not in popup_html
+    assert "syncSourceFields" in popup_js
+    assert "company_context: companyContext" in popup_js
+    assert "extractionConfidence" not in popup_js
+    assert "extraction_confidence" not in popup_js
+    assert "source_text" not in popup_js
+    assert "compensation:" not in popup_js

@@ -11,7 +11,7 @@ DraftType = Literal["upwork_proposal", "cover_letter", "short_application_messag
 
 
 class OpportunitySnapshot(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     source: str = "unknown"
     source_url: str = ""
@@ -19,7 +19,6 @@ class OpportunitySnapshot(BaseModel):
     title: str = ""
     company: str = ""
     location: str = ""
-    compensation: str = ""
     employment_type: str = ""
     remote_status: str = ""
     description: str = ""
@@ -30,9 +29,17 @@ class OpportunitySnapshot(BaseModel):
     application_questions: list[str] = Field(default_factory=list)
     company_context: str = ""
     recruiter_or_client_context: str = ""
-    source_text: str = ""
-    extraction_confidence: str = "medium"
     extraction_warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def discard_obsolete_freeform_fields(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        cleaned = dict(value)
+        for field in ("raw_text", "source_text", "extraction_confidence", "compensation"):
+            cleaned.pop(field, None)
+        return cleaned
 
     def search_text(self) -> str:
         return " ".join(
@@ -40,7 +47,6 @@ class OpportunitySnapshot(BaseModel):
                 self.title,
                 self.company,
                 self.location,
-                self.compensation,
                 self.employment_type,
                 self.remote_status,
                 self.description,
@@ -51,7 +57,6 @@ class OpportunitySnapshot(BaseModel):
                 " ".join(self.application_questions),
                 self.company_context,
                 self.recruiter_or_client_context,
-                self.source_text,
             ]
         )
 
@@ -68,7 +73,7 @@ class UpworkProject(BaseModel):
     captured_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def search_text(self) -> str:
-        return " ".join([self.title, self.description, self.budget, " ".join(self.skills), self.client_context])
+        return " ".join([self.title, self.description, " ".join(self.skills), self.client_context])
 
     def to_opportunity(self) -> OpportunitySnapshot:
         return OpportunitySnapshot(
@@ -76,16 +81,15 @@ class UpworkProject(BaseModel):
             source_url=self.url,
             captured_at=self.captured_at,
             title=self.title,
-            compensation=self.budget,
             description=self.description,
             skills=self.skills,
             recruiter_or_client_context=self.client_context,
-            source_text=self.search_text(),
-            extraction_confidence="medium",
         )
 
 
 class DraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     opportunity: OpportunitySnapshot | None = None
     project: UpworkProject | None = None
     draft_type: DraftType = "cover_letter"

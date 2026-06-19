@@ -67,19 +67,6 @@
     });
   }
 
-  function salaryFromJsonLd(job) {
-    const salary = job?.baseSalary;
-    const value = salary?.value || salary;
-    if (!value) return "";
-    const min = value.minValue || value.value;
-    const max = value.maxValue;
-    const unit = value.unitText ? ` ${String(value.unitText).toLowerCase()}` : "";
-    const currency = salary.currency || value.currency || "USD";
-    if (min && max) return `${currency} ${min} - ${max}${unit}`;
-    if (min) return `${currency} ${min}${unit}`;
-    return "";
-  }
-
   function orgName(value) {
     if (!value) return "";
     if (Array.isArray(value)) return orgName(value[0]);
@@ -149,29 +136,6 @@
     ]);
   }
 
-  function sourceTextFrom(values) {
-    return clean(
-      [
-        values.title,
-        values.company,
-        values.location,
-        values.compensation,
-        values.employment_type,
-        values.remote_status,
-        values.description,
-        ...(values.responsibilities || []),
-        ...(values.requirements || []),
-        ...(values.nice_to_haves || []),
-        ...(values.skills || []),
-        ...(values.application_questions || []),
-        values.company_context,
-        values.recruiter_or_client_context,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    );
-  }
-
   function opportunity(source, values) {
     const description = clean(values.description);
     const skills = unique(values.skills || []);
@@ -182,7 +146,6 @@
       title: clean(values.title),
       company: clean(values.company),
       location: clean(values.location),
-      compensation: clean(values.compensation),
       employment_type: clean(values.employment_type),
       remote_status: clean(values.remote_status),
       description,
@@ -193,8 +156,6 @@
       application_questions: values.application_questions || [],
       company_context: clean(values.company_context),
       recruiter_or_client_context: clean(values.recruiter_or_client_context),
-      source_text: sourceTextFrom({ ...values, description, skills }),
-      extraction_confidence: values.extraction_confidence || "medium",
       extraction_warnings: values.extraction_warnings || [],
     };
   }
@@ -216,10 +177,8 @@
         return opportunity("upwork", {
           title: firstText(['[data-test="job-title"]', '[data-test="job-tile-title"]', '[data-test="Title"]'], proposalDetails),
           description,
-          compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], proposalDetails),
           skills: extractProposalSkills(proposalDetails),
           recruiter_or_client_context: "",
-          extraction_confidence: description ? "high" : "low",
           extraction_warnings: description ? [] : ["Upwork job description element was not found; review the snapshot before drafting."],
         });
       }
@@ -235,7 +194,6 @@
             '[data-test="Title"]',
           ], root),
         description,
-        compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], root),
         skills: upworkSkills(root),
         recruiter_or_client_context: firstText([
           '[data-test="client-info"]',
@@ -259,13 +217,11 @@
         title: clean(job?.title),
         company,
         location: locationFromJsonLd(job) || firstText(['[data-testid="locationTypeBadge"]']),
-        compensation: salaryFromJsonLd(job),
         employment_type: employmentTypeFromJsonLd(job),
         remote_status: remoteStatusFromJsonLd(job),
         description,
         skills: diceJobSkills(job),
         company_context: diceCompanyContext(company),
-        extraction_confidence: job && description ? "high" : "medium",
         extraction_warnings: extractionWarnings,
       });
     },
@@ -283,11 +239,9 @@
         title,
         company,
         location,
-        compensation: firstText(['[data-testid="jobsearch-JobMetadataHeader-item"]']),
         employment_type: "",
         description,
         skills: [],
-        extraction_confidence: description ? "medium" : "low",
         extraction_warnings: description ? [] : ["Indeed job description element was not found; review the snapshot before drafting."],
       });
     },
@@ -305,12 +259,10 @@
         title,
         company,
         location: locationText,
-        compensation: firstText(['[data-testid="job-card-salary"]', '[data-testid="salary"]']),
         employment_type: "",
         remote_status: "",
         description,
         skills: [],
-        extraction_confidence: description ? "medium" : "low",
         extraction_warnings: description ? [] : ["ZipRecruiter job description element was not found; review the snapshot before drafting."],
       });
     },
@@ -324,18 +276,15 @@
       const requirementsText = firstText(['[data-testid="job-details-requirements"]']);
       const title = firstText(['a[href*="/us/en/job/"].rhcl-typography--display5', 'a[href*="/us/en/job/"]']);
       const location = firstText(['[data-testid="job-details-location"]']);
-      const compensation = firstText(['[data-testid="job-details-salary"]', '[data-testid="job-details-pay"]']);
       return opportunity("roberthalf", {
         title,
         company: "Robert Half",
         location,
-        compensation,
         employment_type: "",
         remote_status: "",
         description,
         requirements: requirementsText ? [requirementsText] : [],
         skills: [],
-        extraction_confidence: description ? "high" : "low",
         extraction_warnings: description ? [] : ["Robert Half job detail region was not found; review the snapshot before drafting."],
       });
     },
@@ -379,7 +328,6 @@
     if (!adapter) {
       return opportunity("generic", {
         description: "",
-        extraction_confidence: "low",
         extraction_warnings: ["No site adapter matched this page; no generic page text was extracted."],
       });
     }

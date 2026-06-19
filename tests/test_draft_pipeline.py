@@ -77,17 +77,19 @@ def test_pipeline_uses_model_led_context_selection(tmp_path: Path) -> None:
     store.init()
     context = _context_bundle()
     request = DraftRequest(
-        opportunity=OpportunitySnapshot(
-            source="dice",
-            title="Senior Software Engineer",
-            company="Motion Recruitment Partners, LLC",
-            description=(
-                "The client is looking to add one additional resource to support an existing team member. "
-                "This is not a lead or stakeholder-facing role. The primary need is TypeScript, React, NextJS, "
-                "Jira, and roadmap execution."
-            ),
-            skills=["React", "TypeScript"],
-            source_text="Similar job says launch your career, but that text is unrelated page chrome.",
+        opportunity=OpportunitySnapshot.model_validate(
+            {
+                "source": "dice",
+                "title": "Senior Software Engineer",
+                "company": "Motion Recruitment Partners, LLC",
+                "description": (
+                    "The client is looking to add one additional resource to support an existing team member. "
+                    "This is not a lead or stakeholder-facing role. The primary need is TypeScript, React, NextJS, "
+                    "Jira, and roadmap execution."
+                ),
+                "skills": ["React", "TypeScript"],
+                "source_text": "Similar job says launch your career, but that text is unrelated page chrome.",
+            }
         )
     )
 
@@ -102,6 +104,8 @@ def test_pipeline_uses_model_led_context_selection(tmp_path: Path) -> None:
     assert codex.calls[0][2] == paths.selection_schema_path
     assert '"available_projects"' in codex.calls[0][1]
     assert "mucho-hangouts" in codex.calls[0][1]
+    assert "source_text" not in codex.calls[0][1]
+    assert "unrelated page chrome" not in codex.calls[0][1]
     assert result.selection.angle.key == "frontend_staff_augmentation"
     assert [project.slug for project in result.selection.projects] == ["genrupt"]
     assert result.selection.role_classification == "frontend staff augmentation"

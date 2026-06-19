@@ -53,7 +53,6 @@ def test_selection_from_plan_uses_model_selected_angle_and_projects() -> None:
             description="Use OpenAI to review scraped listing evidence.",
             company_context="Company builds workflow automation tools.",
             skills=["Playwright", "OpenAI"],
-            source_text="Need Playwright automation Use OpenAI to review scraped listing evidence.",
         )
     )
     plan = ContextSelectionPlan.model_validate(
@@ -88,4 +87,5 @@ def test_selection_from_plan_uses_model_selected_angle_and_projects() -> None:
     assert selection.selection_decisions[0].audit_id == "model-selection"
     refs = {evidence.ref for evidence in selection.source_evidence}
     assert "opportunity.company_context" in refs
-    assert "opportunity.source_text" in refs
+    assert "opportunity.nice_to_haves" in refs
+    assert "opportunity.source_text" not in refs
