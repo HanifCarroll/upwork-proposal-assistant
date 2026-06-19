@@ -127,7 +127,6 @@ def _draft_json(text: str) -> dict[str, object]:
         "draft_text": text,
         "draft_type": "cover_letter",
         "subject_line": "",
-        "question_answers": [],
         "selected_angle": {
             "key": "frontend_staff_augmentation",
             "label": "Frontend staff augmentation",

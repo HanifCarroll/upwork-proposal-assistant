@@ -7,7 +7,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-DraftType = Literal["upwork_proposal", "cover_letter", "short_application_message", "question_answers"]
+DraftType = Literal["cover_letter", "upwork_proposal"]
 
 
 class OpportunitySnapshot(BaseModel):
@@ -143,6 +143,8 @@ class ContextBundle(BaseModel):
 
 
 class AuditDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     audit_id: str
     decision: str
     caused_by: list[str]
@@ -150,11 +152,15 @@ class AuditDecision(BaseModel):
 
 
 class ClaimTrace(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     text: str
     caused_by: list[str]
 
 
 class SelectedAngle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     key: str
     label: str
     promise: str
@@ -162,22 +168,19 @@ class SelectedAngle(BaseModel):
 
 
 class RejectedProject(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     slug: str
     reason: str
     caused_by: list[str] = Field(default_factory=list)
 
 
-class QuestionAnswer(BaseModel):
-    question: str
-    answer: str
-    caused_by: list[str] = Field(default_factory=list)
-
-
 class DraftResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     draft_text: str
     draft_type: DraftType = "cover_letter"
     subject_line: str = ""
-    question_answers: list[QuestionAnswer] = Field(default_factory=list)
     selected_angle: SelectedAngle
     role_classification: str
     application_strategy: str

@@ -5,7 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from upwork_proposal_assistant.models import OpportunitySnapshot, UpworkProject
+from upwork_proposal_assistant.models import DraftRequest, OpportunitySnapshot, UpworkProject
 
 
 def test_opportunity_snapshot_discards_obsolete_freeform_fields() -> None:
@@ -50,3 +50,9 @@ def test_upwork_project_budget_is_not_promoted_to_opportunity_context() -> None:
 
     assert "$1,000" not in json.dumps(opportunity.model_dump())
     assert "$1,000" not in opportunity.search_text()
+
+
+@pytest.mark.parametrize("draft_type", ["question_answers", "short_application_message"])
+def test_draft_request_rejects_removed_draft_types(draft_type: str) -> None:
+    with pytest.raises(ValidationError):
+        DraftRequest.model_validate({"opportunity": {"title": "Job"}, "draft_type": draft_type})

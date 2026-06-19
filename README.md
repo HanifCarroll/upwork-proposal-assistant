@@ -19,7 +19,7 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 - Persists draft jobs in SQLite so long Codex runs can be polled.
 - Keeps popup state in `chrome.storage.local`, so closing and reopening the popup resumes an active job.
 - Provides a Chrome options page for configuring the local backend URL.
-- Drafts cover letters, short application messages, application-question answers, and Upwork proposals.
+- Drafts cover letters and Upwork proposals.
 
 ## Architecture
 
@@ -180,7 +180,7 @@ Job stages:
 - `done`
 - `failed`
 
-`POST /draft-jobs` accepts a normalized `opportunity` and `draft_type`. Supported draft types are `cover_letter`, `short_application_message`, `question_answers`, and `upwork_proposal`.
+`POST /draft-jobs` accepts a normalized `opportunity` and `draft_type`. Supported draft types are `cover_letter` and `upwork_proposal`.
 
 `GET /draft-jobs/{job_id}` also returns privacy-safe timing instrumentation under `timings`: queue time, per-stage durations, and per-`codex exec` subprocess metrics such as duration, exit code, timeout flag, output size, and JSON parse time. It does not include prompts, job descriptions, draft text, or personal context.
 

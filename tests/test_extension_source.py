@@ -110,6 +110,10 @@ def test_popup_uses_unified_source_aware_snapshot_form() -> None:
     assert "draft.draft_text" in popup_js
     assert "draft.primary_text" not in popup_js
     assert "draft.proposal" not in popup_js
+    assert "short_application_message" not in popup_html
+    assert "short_application_message" not in popup_js
+    assert "question_answers" not in popup_html
+    assert "question_answers" not in popup_js
     assert "selecting_context" not in popup_js
     assert "humanizer" not in popup_js
     assert "extractionConfidence" not in popup_js

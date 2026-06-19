@@ -6,7 +6,6 @@
     "draft_text",
     "draft_type",
     "subject_line",
-    "question_answers",
     "selected_angle",
     "role_classification",
     "application_strategy",
@@ -20,25 +19,9 @@
     "draft_text": { "type": "string" },
     "draft_type": {
       "type": "string",
-      "enum": ["upwork_proposal", "cover_letter", "short_application_message", "question_answers"]
+      "enum": ["cover_letter", "upwork_proposal"]
     },
     "subject_line": { "type": "string" },
-    "question_answers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["question", "answer", "caused_by"],
-        "properties": {
-          "question": { "type": "string" },
-          "answer": { "type": "string" },
-          "caused_by": {
-            "type": "array",
-            "items": { "type": "string" }
-          }
-        }
-      }
-    },
     "selected_angle": {
       "type": "object",
       "additionalProperties": false,

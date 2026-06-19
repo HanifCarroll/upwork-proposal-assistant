@@ -16,7 +16,6 @@ def test_store_round_trips_draft_response(tmp_path: Path) -> None:
             "draft_text": "I can help with this.",
             "draft_type": "cover_letter",
             "subject_line": "",
-            "question_answers": [],
             "selected_angle": {
                 "key": "ai",
                 "label": "AI",

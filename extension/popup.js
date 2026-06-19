@@ -1,6 +1,7 @@
 const DEFAULT_API_BASE = "http://127.0.0.1:8787";
 const API_BASE_KEY = "upworkProposalBackendUrl";
 const DRAFT_STATE_KEY = "upworkProposalDraftState";
+const SUPPORTED_DRAFT_TYPES = new Set(["cover_letter", "upwork_proposal"]);
 
 const els = {
   status: document.querySelector("#status"),
@@ -214,8 +215,6 @@ function fillOpportunity(opportunity) {
   syncSourceFields();
   if (opportunity.source === "upwork") {
     els.draftType.value = "upwork_proposal";
-  } else if ((opportunity.application_questions || []).length > 0) {
-    els.draftType.value = "question_answers";
   } else {
     els.draftType.value = "cover_letter";
   }
@@ -223,7 +222,9 @@ function fillOpportunity(opportunity) {
 
 function fillRequest(request) {
   fillOpportunity(request.opportunity || request.project || {});
-  els.draftType.value = request.draft_type || "cover_letter";
+  if (SUPPORTED_DRAFT_TYPES.has(request.draft_type)) {
+    els.draftType.value = request.draft_type;
+  }
   els.notes.value = request.user_notes || "";
 }
 

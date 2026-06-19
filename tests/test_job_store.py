@@ -19,7 +19,6 @@ def test_job_store_tracks_completion_and_draft_audit(tmp_path: Path) -> None:
         "draft_text": "I would stabilize the riskiest workflow first.",
         "draft_type": "cover_letter",
         "subject_line": "",
-        "question_answers": [],
         "selected_angle": {
             "key": "saas",
             "label": "SaaS",
