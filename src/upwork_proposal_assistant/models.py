@@ -117,6 +117,32 @@ class DraftResponse(BaseModel):
     created_at: str
 
 
+class StageTiming(BaseModel):
+    started_at: str
+    finished_at: str | None = None
+    duration_ms: int | None = None
+
+
+class CodexRunTiming(BaseModel):
+    phase: str
+    started_at: str
+    finished_at: str | None = None
+    duration_ms: int | None = None
+    return_code: int | None = None
+    timed_out: bool = False
+    prompt_chars: int = 0
+    stdout_bytes: int = 0
+    stderr_bytes: int = 0
+    output_bytes: int | None = None
+    parse_duration_ms: int | None = None
+
+
+class DraftJobTimings(BaseModel):
+    queue_ms: int | None = None
+    stages: dict[str, StageTiming] = Field(default_factory=dict)
+    codex_runs: list[CodexRunTiming] = Field(default_factory=list)
+
+
 DraftJobState = Literal["queued", "running", "succeeded", "failed"]
 DraftJobStage = Literal["queued", "selecting_context", "codex_draft", "humanizer", "saving", "done", "failed"]
 
@@ -138,6 +164,7 @@ class DraftJobStatus(BaseModel):
     selected_projects: list[str] = Field(default_factory=list)
     result: DraftResponse | None = None
     error: str | None = None
+    timings: DraftJobTimings = Field(default_factory=DraftJobTimings)
     created_at: str
     updated_at: str
 

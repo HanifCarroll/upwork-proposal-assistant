@@ -7,7 +7,16 @@ import logging
 from upwork_proposal_assistant.codex_provider import CodexProvider
 from upwork_proposal_assistant.draft_pipeline import run_draft_pipeline
 from upwork_proposal_assistant.job_store import DraftJobRecord, DraftJobStore
-from upwork_proposal_assistant.models import ContextBundle, ContextSelection, DraftJobCreated, DraftJobStage, DraftJobStatus, DraftRequest
+from upwork_proposal_assistant.models import (
+    CodexRunTiming,
+    ContextBundle,
+    ContextSelection,
+    DraftJobCreated,
+    DraftJobStage,
+    DraftJobStatus,
+    DraftRequest,
+    StageTiming,
+)
 from upwork_proposal_assistant.storage import DraftStore
 
 
@@ -44,6 +53,8 @@ class DraftJobRunner:
                 codex=self.codex,
                 store=self.draft_store,
                 on_stage=lambda stage, selection: self._record_stage(job_id, stage, selection),
+                on_stage_timing=lambda stage, timing: self._record_stage_timing(job_id, stage, timing),
+                on_codex_timing=lambda timing: self._record_codex_timing(job_id, timing),
             )
             self.job_store.complete(job_id, result.stored.id)
         except Exception as exc:
@@ -55,6 +66,12 @@ class DraftJobRunner:
             self.job_store.update_stage(job_id, stage)
             return
         self.job_store.save_selection(job_id, selection, stage)
+
+    def _record_stage_timing(self, job_id: str, stage: DraftJobStage, timing: StageTiming) -> None:
+        self.job_store.record_stage_timing(job_id, stage, timing)
+
+    def _record_codex_timing(self, job_id: str, timing: CodexRunTiming) -> None:
+        self.job_store.record_codex_timing(job_id, timing)
 
 
 def build_job_status(record: DraftJobRecord, draft_store: DraftStore) -> DraftJobStatus:
@@ -70,6 +87,7 @@ def build_job_status(record: DraftJobRecord, draft_store: DraftStore) -> DraftJo
         selected_projects=selected_projects,
         result=result,
         error=record.error,
+        timings=record.timings,
         created_at=record.created_at,
         updated_at=record.updated_at,
     )

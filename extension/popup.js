@@ -170,6 +170,7 @@ function buildAuditPayload(job, draft) {
     decisions: draft.decisions,
     claims: draft.claims,
     warnings: draft.warnings,
+    timings: job.timings,
   };
 }
 

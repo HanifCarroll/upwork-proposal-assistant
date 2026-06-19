@@ -162,6 +162,8 @@ Job stages:
 - `done`
 - `failed`
 
+`GET /draft-jobs/{job_id}` also returns privacy-safe timing instrumentation under `timings`: queue time, per-stage durations, and per-`codex exec` subprocess metrics such as duration, exit code, timeout flag, output size, and JSON parse time. It does not include prompts, Upwork descriptions, proposal text, or personal context.
+
 ## Auditability
 
 Every draft response includes:
