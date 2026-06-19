@@ -2,7 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["proposal", "angle", "selected_projects", "decisions", "claims", "warnings"],
+  "required": [
+    "proposal",
+    "primary_text",
+    "draft_type",
+    "subject_line",
+    "short_message",
+    "question_answers",
+    "angle",
+    "selected_projects",
+    "decisions",
+    "claims",
+    "warnings"
+  ],
   "properties": {
     "proposal": { "type": "string" },
     "primary_text": { "type": "string" },

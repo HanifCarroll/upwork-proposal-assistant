@@ -94,6 +94,8 @@ Supported environment variables:
 | `UPWORK_PROPOSAL_DB_PATH` | `.runtime/drafts.db` | SQLite database path. |
 | `UPWORK_PROPOSAL_CODEX_RUNS_DIR` | `.runtime/codex-runs` | Per-run Codex workspaces. |
 | `UPWORK_PROPOSAL_CODEX_BINARY` | `codex` | Codex CLI executable. |
+| `UPWORK_PROPOSAL_CODEX_MODEL` | `gpt-5.5` | Model passed explicitly to `codex exec`. |
+| `UPWORK_PROPOSAL_CODEX_REASONING_EFFORT` | `xhigh` | Reasoning effort passed explicitly to `codex exec`. |
 | `UPWORK_PROPOSAL_CODEX_TIMEOUT_SECONDS` | `180` | Timeout per Codex pass. |
 | `UPWORK_PROPOSAL_HUMANIZER_SKILL` | `~/.codex/skills/humanizer` | Skill directory symlinked into Codex run workspaces. |
 
@@ -157,6 +159,8 @@ The generated cache in `data/context` is intentionally ignored by Git. Rebuild i
 ```bash
 uv run upa reindex
 ```
+
+The backend runs `codex exec` with `--ignore-user-config` and `--ignore-rules` so unrelated local MCP servers, plugins, hooks, or execpolicy files do not slow down or destabilize proposal generation. Model and reasoning effort are passed explicitly through the environment variables above.
 
 ## API
 
