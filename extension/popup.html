@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Upwork Proposal Assistant</title>
+    <title>Application Draft Assistant</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div>
-          <h1>Proposal draft</h1>
-          <p id="status">Waiting for Upwork context.</p>
+          <h1>Application draft</h1>
+          <p id="status">Waiting for job context.</p>
         </div>
         <div class="topbar-actions">
           <button id="settings" type="button">Settings</button>
@@ -30,9 +30,25 @@
       </div>
 
       <label>
-        Title
+        Source
+        <input id="source" type="text" autocomplete="off" />
+      </label>
+
+      <label>
+        Role title
         <input id="title" type="text" autocomplete="off" />
       </label>
+
+      <div class="grid">
+        <label>
+          Company
+          <input id="company" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Location
+          <input id="location" type="text" autocomplete="off" />
+        </label>
+      </div>
 
       <label>
         Description
@@ -41,7 +57,7 @@
 
       <div class="grid">
         <label>
-          Budget
+          Compensation
           <input id="budget" type="text" autocomplete="off" />
         </label>
         <label>
@@ -51,7 +67,17 @@
       </div>
 
       <label>
-        Notes for this proposal
+        Draft type
+        <select id="draft-type">
+          <option value="cover_letter">Cover letter</option>
+          <option value="short_application_message">Short message</option>
+          <option value="question_answers">Question answers</option>
+          <option value="upwork_proposal">Upwork proposal</option>
+        </select>
+      </label>
+
+      <label>
+        Notes for this draft
         <textarea id="notes" rows="3" placeholder="Optional angle, concern, or proof point to emphasize."></textarea>
       </label>
 
@@ -59,7 +85,7 @@
 
       <section class="result" aria-live="polite">
         <div class="result-header">
-          <h2>Proposal</h2>
+          <h2>Draft</h2>
           <button id="copy" type="button" disabled>Copy</button>
         </div>
         <textarea id="proposal" rows="8" readonly></textarea>

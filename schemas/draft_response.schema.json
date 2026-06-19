@@ -5,6 +5,29 @@
   "required": ["proposal", "angle", "selected_projects", "decisions", "claims", "warnings"],
   "properties": {
     "proposal": { "type": "string" },
+    "primary_text": { "type": "string" },
+    "draft_type": {
+      "type": "string",
+      "enum": ["upwork_proposal", "cover_letter", "short_application_message", "question_answers"]
+    },
+    "subject_line": { "type": "string" },
+    "short_message": { "type": "string" },
+    "question_answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "answer", "caused_by"],
+        "properties": {
+          "question": { "type": "string" },
+          "answer": { "type": "string" },
+          "caused_by": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
     "angle": { "type": "string" },
     "selected_projects": {
       "type": "array",

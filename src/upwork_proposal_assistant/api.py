@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
     codex = CodexProvider(paths)
     runner = DraftJobRunner(context=context, codex=codex, draft_store=store, job_store=job_store)
 
-    app = FastAPI(title="Upwork Proposal Assistant", version="0.1.0")
+    app = FastAPI(title="Application Draft Assistant", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

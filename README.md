@@ -1,14 +1,15 @@
-# Upwork Proposal Assistant
+# Application Draft Assistant
 
-A local Chrome extension and Python backend for drafting auditable Upwork proposals with `codex exec`.
+A local Chrome extension and Python backend for drafting auditable job applications with `codex exec`.
 
-The extension extracts the current Upwork job snapshot, lets you review it, and sends it to a local FastAPI service. The backend selects relevant personal context, asks Codex for a structured draft, runs a second Codex pass through `$humanizer`, and stores the proposal with an audit trail. The extension never submits proposals to Upwork.
+The extension extracts the current job opportunity, lets you review it, and sends it to a local FastAPI service. The backend selects relevant personal context, asks Codex for a structured draft, runs a second Codex pass through `$humanizer`, and stores the cover letter/proposal with an audit trail. The extension never submits applications.
 
-This project is not affiliated with Upwork.
+This project is not affiliated with Upwork, Dice, Indeed, ZipRecruiter, Robert Half, or any other job platform.
 
 ## Features
 
-- Extracts title, description, budget, skills, and URL from Upwork job/proposal pages.
+- Extracts title, company, location, compensation, description, skills, and URL from supported job pages.
+- Supports Upwork, Dice, Indeed, ZipRecruiter, and Robert Half.
 - Lets you edit the extracted job snapshot before drafting.
 - Uses local saved context about you: profile, service offers, and project proof points.
 - Runs two Codex passes: draft generation, then `$humanizer`.
@@ -16,19 +17,21 @@ This project is not affiliated with Upwork.
 - Persists draft jobs in SQLite so long Codex runs can be polled.
 - Keeps popup state in `chrome.storage.local`, so closing and reopening the popup resumes an active job.
 - Provides a Chrome options page for configuring the local backend URL.
+- Drafts cover letters, short application messages, application-question answers, and Upwork proposals.
 
 ## Architecture
 
 ```text
 Chrome popup
-  -> content script extracts Upwork job details
+  -> content script chooses a site adapter
+  -> adapter extracts a normalized OpportunitySnapshot
   -> background service worker starts a draft job
   -> FastAPI backend persists and runs the job
   -> context selector chooses profile/projects/offers
   -> codex exec draft pass
   -> codex exec $humanizer pass
   -> SQLite stores request, context selection, first pass, final pass
-  -> popup polls job status and displays proposal + audit trail
+  -> popup polls job status and displays draft + audit trail
 ```
 
 ## Requirements
@@ -58,6 +61,20 @@ Then load the Chrome extension:
 5. Open the extension options page and confirm the backend URL, usually `http://127.0.0.1:8787`.
 
 The checked-in `examples/portfolio` directory is only sample data. Replace it with your own context before using the tool seriously.
+
+## Supported Sites
+
+The extension uses site adapters that convert each page into the same normalized opportunity model.
+
+| Site | Supported page shape |
+| --- | --- |
+| Upwork | Job feed cards and proposal/job-detail pages. |
+| Dice | Job-detail pages, using `JobPosting` JSON-LD when available. |
+| Indeed | Search result pages with the selected job detail panel. |
+| ZipRecruiter | Search result pages with the selected job detail pane. |
+| Robert Half | Search result pages with the selected job detail card. |
+
+The extension reads the job page you are viewing. It does not crawl job boards or submit applications.
 
 ## Configuration
 
@@ -162,7 +179,9 @@ Job stages:
 - `done`
 - `failed`
 
-`GET /draft-jobs/{job_id}` also returns privacy-safe timing instrumentation under `timings`: queue time, per-stage durations, and per-`codex exec` subprocess metrics such as duration, exit code, timeout flag, output size, and JSON parse time. It does not include prompts, Upwork descriptions, proposal text, or personal context.
+`POST /draft-jobs` accepts a normalized `opportunity` and `draft_type`. Supported draft types are `cover_letter`, `short_application_message`, `question_answers`, and `upwork_proposal`.
+
+`GET /draft-jobs/{job_id}` also returns privacy-safe timing instrumentation under `timings`: queue time, per-stage durations, and per-`codex exec` subprocess metrics such as duration, exit code, timeout flag, output size, and JSON parse time. It does not include prompts, job descriptions, draft text, or personal context.
 
 ## Auditability
 
@@ -173,7 +192,7 @@ Every draft response includes:
 - `caused_by[]`: source refs that support each decision or claim.
 - `warnings[]`: issues the model surfaced during drafting.
 
-The backend stores the original request, deterministic context selection, first Codex pass, and final humanized pass. That makes it possible to trace proposal language back to the Upwork snapshot, personal context, or user notes that caused it.
+The backend stores the original request, deterministic context selection, first Codex pass, and final humanized pass. That makes it possible to trace application language back to the job snapshot, personal context, or user notes that caused it.
 
 ## Privacy And Data Retention
 
@@ -181,20 +200,20 @@ This is a local-first tool, but it does store sensitive working data.
 
 Stored locally:
 
-- Chrome extension state in `chrome.storage.local`: current request, job id, progress, proposal text, and audit text.
-- SQLite data in `.runtime/drafts.db`: Upwork job details, user notes, selected context, first Codex pass, final proposal, and audit trail.
+- Chrome extension state in `chrome.storage.local`: current request, job id, progress, draft text, and audit text.
+- SQLite data in `.runtime/drafts.db`: job details, user notes, selected context, first Codex pass, final draft, and audit trail.
 - Codex run workspaces in `.runtime/codex-runs/`: final JSON messages from individual Codex runs.
 - Generated context in `data/context/`: profile, offers, and project proof points derived from your configured context source.
 
 Not intentionally stored or sent:
 
-- The extension does not submit proposals to Upwork.
-- The backend does not call Upwork APIs.
+- The extension does not submit applications or proposals.
+- The backend does not call job-board APIs.
 - The project does not include analytics.
 
 Important inference note:
 
-- Drafting uses `codex exec`. Proposal inputs are sent through whatever Codex/OpenAI account and runtime you have configured locally.
+- Drafting uses `codex exec`. Job/application inputs are sent through whatever Codex/OpenAI account and runtime you have configured locally.
 
 To wipe local data:
 

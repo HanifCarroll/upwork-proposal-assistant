@@ -17,7 +17,8 @@ TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9+#.-]*")
 
 
 def select_context(bundle: ContextBundle, request: DraftRequest, max_projects: int = 2) -> ContextSelection:
-    job_text = f"{request.project.search_text()} {request.user_notes}".lower()
+    opportunity = request.opportunity_snapshot()
+    job_text = f"{opportunity.search_text()} {request.user_notes}".lower()
     angle = _best_angle(bundle.offers, job_text)
     projects = _best_projects(bundle.projects, job_text, max_projects=max_projects)
     evidence = _build_evidence(angle, projects, request)
@@ -25,13 +26,13 @@ def select_context(bundle: ContextBundle, request: DraftRequest, max_projects: i
         AuditDecision(
             audit_id="select-angle",
             decision=f"Use {angle.label} angle",
-            caused_by=["upwork.title", "upwork.description", angle.source_ref],
+            caused_by=["opportunity.title", "opportunity.description", angle.source_ref],
             rationale=f"Matched job language against offer triggers: {', '.join(_matched_terms(angle.use_when, job_text)[:6]) or 'default product-engineering fit'}.",
         ),
         AuditDecision(
             audit_id="select-projects",
             decision=f"Use proof from {', '.join(project.slug for project in projects)}",
-            caused_by=["upwork.description", *[f"project.{project.slug}.claim" for project in projects]],
+            caused_by=["opportunity.description", *[f"project.{project.slug}.claim" for project in projects]],
             rationale="Selected the highest-scoring portfolio proof points for the job text and user notes.",
         ),
     ]
@@ -58,11 +59,22 @@ def _best_projects(projects: list[ContextProject], job_text: str, max_projects: 
 
 
 def _build_evidence(angle: OfferAngle, projects: list[ContextProject], request: DraftRequest) -> list[SourceEvidence]:
+    opportunity = request.opportunity_snapshot()
     evidence = [
-        SourceEvidence(ref="upwork.title", text=request.project.title),
-        SourceEvidence(ref="upwork.description", text=request.project.description),
-        SourceEvidence(ref="upwork.budget", text=request.project.budget),
-        SourceEvidence(ref="upwork.skills", text=", ".join(request.project.skills)),
+        SourceEvidence(ref="opportunity.source", text=opportunity.source),
+        SourceEvidence(ref="opportunity.url", text=opportunity.source_url),
+        SourceEvidence(ref="opportunity.title", text=opportunity.title),
+        SourceEvidence(ref="opportunity.company", text=opportunity.company),
+        SourceEvidence(ref="opportunity.location", text=opportunity.location),
+        SourceEvidence(ref="opportunity.compensation", text=opportunity.compensation),
+        SourceEvidence(ref="opportunity.employment_type", text=opportunity.employment_type),
+        SourceEvidence(ref="opportunity.remote_status", text=opportunity.remote_status),
+        SourceEvidence(ref="opportunity.description", text=opportunity.description),
+        SourceEvidence(ref="opportunity.responsibilities", text=" ".join(opportunity.responsibilities)),
+        SourceEvidence(ref="opportunity.requirements", text=" ".join(opportunity.requirements)),
+        SourceEvidence(ref="opportunity.skills", text=", ".join(opportunity.skills)),
+        SourceEvidence(ref="opportunity.application_questions", text=" ".join(opportunity.application_questions)),
+        SourceEvidence(ref="opportunity.recruiter_or_client_context", text=opportunity.recruiter_or_client_context),
         SourceEvidence(ref="user.notes", text=request.user_notes),
         SourceEvidence(ref=angle.source_ref, text=f"{angle.label}: {angle.promise}"),
     ]

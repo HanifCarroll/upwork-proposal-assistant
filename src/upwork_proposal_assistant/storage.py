@@ -53,9 +53,15 @@ class DraftStore:
         if row is None:
             return None
         final_pass = json.loads(str(row["final_pass_json"]))
+        primary_text = str(final_pass.get("primary_text") or final_pass.get("proposal", ""))
         return DraftResponse(
             id=str(row["id"]),
-            proposal=str(final_pass.get("proposal", "")),
+            proposal=str(final_pass.get("proposal") or primary_text),
+            primary_text=primary_text,
+            draft_type=final_pass.get("draft_type", "cover_letter"),
+            subject_line=str(final_pass.get("subject_line", "")),
+            short_message=str(final_pass.get("short_message", "")),
+            question_answers=final_pass.get("question_answers", []),
             angle=str(final_pass.get("angle", "")),
             selected_projects=[str(item) for item in final_pass.get("selected_projects", [])],
             decisions=final_pass.get("decisions", []),

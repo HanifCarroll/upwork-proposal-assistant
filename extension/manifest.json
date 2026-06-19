@@ -1,21 +1,35 @@
 {
   "manifest_version": 3,
-  "name": "Upwork Proposal Assistant",
+  "name": "Application Draft Assistant",
   "version": "0.1.0",
-  "description": "Extract Upwork job context and draft auditable proposals through a local Python/Codex backend.",
+  "description": "Extract job context and draft auditable applications through a local Python/Codex backend.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Draft proposal"
+    "default_title": "Draft application"
   },
   "options_page": "options.html",
   "background": {
     "service_worker": "background.js"
   },
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://www.upwork.com/*", "http://127.0.0.1/*", "http://localhost/*"],
+  "host_permissions": [
+    "https://www.upwork.com/*",
+    "https://www.dice.com/*",
+    "https://www.indeed.com/*",
+    "https://www.ziprecruiter.com/*",
+    "https://www.roberthalf.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://www.upwork.com/*"],
+      "matches": [
+        "https://www.upwork.com/*",
+        "https://www.dice.com/*",
+        "https://www.indeed.com/*",
+        "https://www.ziprecruiter.com/*",
+        "https://www.roberthalf.com/*"
+      ],
       "js": ["content_script.js"],
       "run_at": "document_idle"
     }

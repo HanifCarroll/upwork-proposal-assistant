@@ -8,10 +8,14 @@ const els = {
   extract: document.querySelector("#extract"),
   draft: document.querySelector("#draft"),
   copy: document.querySelector("#copy"),
+  source: document.querySelector("#source"),
   title: document.querySelector("#title"),
+  company: document.querySelector("#company"),
+  location: document.querySelector("#location"),
   description: document.querySelector("#description"),
   budget: document.querySelector("#budget"),
   skills: document.querySelector("#skills"),
+  draftType: document.querySelector("#draft-type"),
   notes: document.querySelector("#notes"),
   proposal: document.querySelector("#proposal"),
   audit: document.querySelector("#audit"),
@@ -127,37 +131,77 @@ async function extractProject() {
 }
 
 async function sendExtractMessage(tabId) {
-  const response = await chrome.tabs.sendMessage(tabId, { type: "UPWORK_PROPOSAL_EXTRACT" });
-  if (!response?.ok) throw new Error("Could not extract project details.");
-  return response.project;
+  const response = await chrome.tabs.sendMessage(tabId, { type: "APPLICATION_DRAFT_EXTRACT" });
+  if (!response?.ok) throw new Error("Could not extract job details.");
+  return response.opportunity || response.project;
 }
 
-function fillProject(project) {
-  els.title.value = project.title || "";
-  els.description.value = project.description || "";
-  els.budget.value = project.budget || "";
-  els.skills.value = (project.skills || []).join(", ");
-  els.title.dataset.url = project.url || "";
+function fillOpportunity(opportunity) {
+  els.source.value = opportunity.source || "";
+  els.title.value = opportunity.title || "";
+  els.company.value = opportunity.company || "";
+  els.location.value = opportunity.location || "";
+  els.description.value = opportunity.description || "";
+  els.budget.value = opportunity.compensation || opportunity.budget || "";
+  els.skills.value = (opportunity.skills || []).join(", ");
+  els.title.dataset.url = opportunity.source_url || opportunity.url || "";
+  els.title.dataset.remoteStatus = opportunity.remote_status || "";
+  els.title.dataset.employmentType = opportunity.employment_type || "";
+  els.title.dataset.rawText = opportunity.raw_text || "";
+  els.title.dataset.questions = JSON.stringify(opportunity.application_questions || []);
+  els.title.dataset.warnings = JSON.stringify(opportunity.extraction_warnings || []);
+  if (opportunity.source === "upwork") {
+    els.draftType.value = "upwork_proposal";
+  } else if ((opportunity.application_questions || []).length > 0) {
+    els.draftType.value = "question_answers";
+  } else {
+    els.draftType.value = "cover_letter";
+  }
 }
 
 function fillRequest(request) {
-  fillProject(request.project || {});
+  fillOpportunity(request.opportunity || request.project || {});
+  els.draftType.value = request.draft_type || "cover_letter";
   els.notes.value = request.user_notes || "";
 }
 
 function readRequest() {
+  const skills = els.skills.value.split(",").map((skill) => skill.trim()).filter(Boolean);
+  const questions = JSON.parse(els.title.dataset.questions || "[]");
+  const warnings = JSON.parse(els.title.dataset.warnings || "[]");
+  const opportunity = {
+    source: els.source.value.trim() || "manual",
+    source_url: els.title.dataset.url || "",
+    captured_at: new Date().toISOString(),
+    title: els.title.value.trim(),
+    company: els.company.value.trim(),
+    location: els.location.value.trim(),
+    compensation: els.budget.value.trim(),
+    employment_type: els.title.dataset.employmentType || "",
+    remote_status: els.title.dataset.remoteStatus || "",
+    description: els.description.value.trim(),
+    skills,
+    application_questions: questions,
+    recruiter_or_client_context: [els.company.value.trim(), els.location.value.trim()].filter(Boolean).join(" | "),
+    raw_text: els.title.dataset.rawText || els.description.value.trim(),
+    extraction_confidence: warnings.length ? "medium" : "high",
+    extraction_warnings: warnings,
+  };
   return {
+    opportunity,
     project: {
-      title: els.title.value.trim(),
-      description: els.description.value.trim(),
-      budget: els.budget.value.trim(),
-      skills: els.skills.value.split(",").map((skill) => skill.trim()).filter(Boolean),
-      client_context: "",
-      url: els.title.dataset.url || "",
-      captured_at: new Date().toISOString(),
+      title: opportunity.title,
+      description: opportunity.description,
+      budget: opportunity.compensation,
+      skills,
+      client_context: opportunity.recruiter_or_client_context,
+      url: opportunity.source_url,
+      captured_at: opportunity.captured_at,
     },
+    draft_type: els.draftType.value,
     user_notes: els.notes.value.trim(),
     proposal_style: "concise",
+    style: "concise",
   };
 }
 
@@ -165,6 +209,7 @@ function buildAuditPayload(job, draft) {
   return {
     job_id: job.id,
     draft_id: draft.id,
+    draft_type: draft.draft_type,
     angle: draft.angle,
     selected_projects: draft.selected_projects,
     decisions: draft.decisions,
@@ -176,9 +221,10 @@ function buildAuditPayload(job, draft) {
 
 function renderDraft(job, draft) {
   const audit = JSON.stringify(buildAuditPayload(job, draft), null, 2);
-  els.proposal.value = draft.proposal || "";
+  const text = draft.primary_text || draft.proposal || draft.short_message || "";
+  els.proposal.value = text;
   els.audit.textContent = audit;
-  els.copy.disabled = !draft.proposal;
+  els.copy.disabled = !text;
   return audit;
 }
 
@@ -257,13 +303,14 @@ async function finishDraftJob(jobId) {
   setBusy(true);
   const { job, draft } = await pollDraftJob(jobId);
   const audit = renderDraft(job, draft);
+  const outputText = draft.primary_text || draft.proposal || draft.short_message || "";
   await writeDraftState({
     phase: "succeeded",
     request: currentState?.request || readRequest(),
     job_id: job.id,
     job,
     result: draft,
-    proposal: draft.proposal || "",
+    proposal: outputText,
     audit,
     error: null,
     started_at: currentState?.started_at,
@@ -335,7 +382,7 @@ els.extract.addEventListener("click", async () => {
     els.proposal.value = "";
     els.audit.textContent = "";
     els.copy.disabled = true;
-    fillProject(await extractProject());
+    fillOpportunity(await extractProject());
     await persistEditableSnapshot();
     setStatus("Review the snapshot before drafting.");
   } catch (error) {
@@ -379,18 +426,19 @@ els.settings.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
-[els.title, els.description, els.budget, els.skills, els.notes].forEach((element) => {
+[els.source, els.title, els.company, els.location, els.description, els.budget, els.skills, els.draftType, els.notes].forEach((element) => {
   element.addEventListener("input", scheduleEditableSnapshot);
+  element.addEventListener("change", scheduleEditableSnapshot);
 });
 
 restoreDraftState()
   .then((restored) => {
     if (restored) return null;
     return extractProject().then(async (project) => {
-      fillProject(project);
+      fillOpportunity(project);
       await persistEditableSnapshot();
       setStatus("Review the snapshot before drafting.");
       return null;
     });
   })
-  .catch((error) => setStatus(error.message || "Open an Upwork job tab, then click Extract.", "error"));
+  .catch((error) => setStatus(error.message || "Open a supported job page, then click Extract.", "error"));
