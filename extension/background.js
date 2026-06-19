@@ -112,29 +112,13 @@ async function lookupDraft(sourceUrl) {
   return response.json();
 }
 
-async function downloadPdf(downloadUrl) {
+async function revealPdf(draftId) {
   const apiBase = await backendUrl();
-  const url = new URL(downloadUrl, apiBase).href;
-  const response = await fetch(url);
+  const response = await fetch(`${apiBase}/drafts/${encodeURIComponent(draftId)}/pdf/reveal`, { method: "POST" });
   if (!response.ok) {
     throw new Error(await responseErrorMessage(response));
   }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  return {
-    ok: true,
-    mime_type: response.headers.get("content-type") || "application/pdf",
-    data_base64: bytesToBase64(bytes),
-  };
-}
-
-function bytesToBase64(bytes) {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const chunk = bytes.subarray(offset, offset + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
+  return response.json();
 }
 
 async function loadApplicationQueue() {
@@ -378,9 +362,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "DOWNLOAD_PDF") {
-    downloadPdf(message.download_url)
-      .then((response) => sendResponse(response))
+  if (message?.type === "REVEAL_PDF") {
+    revealPdf(message.draft_id)
+      .then((response) => sendResponse({ ok: true, ...response }))
       .catch((error) => sendResponse({ ok: false, error: userErrorMessage(error) }));
     return true;
   }

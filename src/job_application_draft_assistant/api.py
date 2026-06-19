@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
@@ -31,6 +31,7 @@ from job_application_draft_assistant.models import (
 )
 from job_application_draft_assistant.drafts.pdf_export import PdfExportError, export_cover_letter_pdf, reveal_pdf
 from job_application_draft_assistant.drafts.storage import DraftStore, DraftStoreValidationError
+from job_application_draft_assistant.drafts.view import render_draft_view
 
 
 def create_app() -> FastAPI:
@@ -173,14 +174,16 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return DraftLookupResponse(matched=draft is not None, draft=draft)
 
-    @app.get("/drafts/{draft_id}")
-    def get_draft(draft_id: str) -> DraftResponse:
+    @app.get("/drafts/{draft_id}", response_model=None)
+    def get_draft(draft_id: str, request: Request, format: str = "") -> DraftResponse | HTMLResponse:
         try:
             response = store.get_response(draft_id)
         except DraftStoreValidationError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         if response is None:
             raise HTTPException(status_code=404, detail="Draft not found")
+        if format != "json" and _prefers_html(request):
+            return HTMLResponse(render_draft_view(response))
         return response
 
     @app.post("/drafts/{draft_id}/pdf")
@@ -252,3 +255,8 @@ def _latest_draft_response_by_source_url(store: DraftStore, source_url: str) -> 
             if response is not None:
                 return response
     return None
+
+
+def _prefers_html(request: Request) -> bool:
+    accept = request.headers.get("accept", "")
+    return "text/html" in accept and "application/json" not in accept

@@ -183,7 +183,7 @@ Useful local endpoints:
 - `GET /applications/lookup?source_url=...`: check whether a normalized source URL already exists in the application ledger.
 - `GET /dashboard`: browser dashboard for the application ledger.
 - `POST /draft`: synchronous draft endpoint for debugging.
-- `GET /drafts/{draft_id}`: fetch a stored completed draft.
+- `GET /drafts/{draft_id}`: show a readable draft page in a browser; fetch JSON with `?format=json`.
 - `POST /drafts/{draft_id}/pdf`: generate a PDF for a stored cover letter draft.
 - `GET /drafts/{draft_id}/pdf`: download the generated cover letter PDF.
 - `POST /drafts/{draft_id}/pdf/reveal`: generate the PDF if needed and reveal it in Finder on macOS.
@@ -249,6 +249,8 @@ PDF export is available for completed `cover_letter` drafts. The backend renders
 The default resume source is the iCloud Downloads resume path shown in Configuration. The exporter reads only the resume header/contact lines needed for letterhead and skips phone-like contact items.
 
 The popup enables `Generate PDF` after a cover letter draft succeeds. PDF generation is started through the extension background service worker and persisted in `chrome.storage.local`, so closing the popup does not own or clear the in-progress export state. After generation, `Finder` asks the local backend to reveal the generated PDF file. The backend only reveals files it generated under the configured PDF output directory.
+
+On Dice application wizard pages, the extension can automatically generate the cover letter PDF and expose `Open PDF` plus `Show in Finder` actions. Dice still owns its upload control; attach the generated PDF through Dice's file picker.
 
 ## Privacy And Data Retention
 

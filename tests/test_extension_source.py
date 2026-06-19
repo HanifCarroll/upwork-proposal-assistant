@@ -173,7 +173,8 @@ def test_extension_wires_application_logging() -> None:
     assert "userErrorMessage" in background_js
     assert "LOOKUP_DRAFT" in background_js
     assert "GET_DRAFT_JOB" in background_js
-    assert "DOWNLOAD_PDF" in background_js
+    assert "REVEAL_PDF" in background_js
+    assert "DOWNLOAD_PDF" not in background_js
     assert "APPLICATION_QUEUE_KEY" in background_js
     assert "/applications" in background_js
     assert "/applications/lookup" in background_js
@@ -193,5 +194,10 @@ def test_extension_wires_application_logging() -> None:
     assert "START_DRAFT_JOB" in dice_wizard_assistant_js
     assert "START_PDF_EXPORT" in dice_wizard_assistant_js
     assert "LOOKUP_DRAFT" in dice_wizard_assistant_js
-    assert "DOWNLOAD_PDF" in dice_wizard_assistant_js
-    assert "input.files = transfer.files" in dice_wizard_assistant_js
+    assert "REVEAL_PDF" in dice_wizard_assistant_js
+    assert "Open PDF" in dice_wizard_assistant_js
+    assert "Show in Finder" in dice_wizard_assistant_js
+    assert "Generate PDF" in dice_wizard_assistant_js
+    assert "DOWNLOAD_PDF" not in dice_wizard_assistant_js
+    assert "input.files = transfer.files" not in dice_wizard_assistant_js
+    assert "DataTransfer" not in dice_wizard_assistant_js
