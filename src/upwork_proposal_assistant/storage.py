@@ -59,6 +59,21 @@ class DraftStore:
             created_at=str(row["created_at"]),
         )
 
+    def get_stored_draft(self, draft_id: str) -> StoredDraft | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "select id, created_at, request_json, draft_json from drafts where id = ?",
+                (draft_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return StoredDraft(
+            id=str(row["id"]),
+            created_at=str(row["created_at"]),
+            request=DraftRequest.model_validate_json(str(row["request_json"])),
+            draft=DraftResult.model_validate_json(str(row["draft_json"])),
+        )
+
     def _table_columns(self, conn: sqlite3.Connection, table: str) -> set[str]:
         rows = conn.execute(f"pragma table_info({table})").fetchall()
         return {str(row["name"]) for row in rows}

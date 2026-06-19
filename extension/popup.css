@@ -42,6 +42,12 @@ body {
   gap: 6px;
 }
 
+.result-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 h1,
 h2,
 p {
@@ -61,6 +67,12 @@ p,
 summary {
   color: var(--muted);
   font-size: 12px;
+}
+
+.meta-status {
+  min-height: 14px;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .progress {

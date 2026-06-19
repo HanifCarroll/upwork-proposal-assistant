@@ -9,6 +9,9 @@ const els = {
   extract: document.querySelector("#extract"),
   draft: document.querySelector("#draft"),
   copy: document.querySelector("#copy"),
+  generatePdf: document.querySelector("#generate-pdf"),
+  openPdfFolder: document.querySelector("#open-pdf-folder"),
+  pdfStatus: document.querySelector("#pdf-status"),
   source: document.querySelector("#source"),
   sourceUrl: document.querySelector("#source-url"),
   title: document.querySelector("#title"),
@@ -159,6 +162,9 @@ function clearDraftOutput() {
   els.proposal.value = "";
   els.audit.textContent = "";
   els.copy.disabled = true;
+  els.generatePdf.disabled = true;
+  els.openPdfFolder.disabled = true;
+  els.pdfStatus.textContent = "";
 }
 
 async function activeTab() {
@@ -306,12 +312,34 @@ function buildAuditPayload(job, draft) {
   };
 }
 
+function currentDraftId() {
+  return currentState?.result?.id || currentState?.job?.result?.id || "";
+}
+
+function currentPdf() {
+  const pdf = currentState?.pdf;
+  if (!pdf || pdf.draft_id !== currentDraftId()) return null;
+  return pdf;
+}
+
+function canGeneratePdf() {
+  return Boolean(currentDraftId()) && els.draftType.value === "cover_letter";
+}
+
+function setPdfControls(pdf) {
+  const canExport = canGeneratePdf();
+  els.generatePdf.disabled = !canExport;
+  els.openPdfFolder.disabled = !canExport || !pdf;
+  els.pdfStatus.textContent = pdf?.filename ? `PDF: ${pdf.filename}` : "";
+}
+
 function renderDraft(job, draft) {
   const audit = JSON.stringify(buildAuditPayload(job, draft), null, 2);
   const text = draft.draft_text || "";
   els.proposal.value = text;
   els.audit.textContent = audit;
   els.copy.disabled = !text;
+  setPdfControls(currentPdf());
   return audit;
 }
 
@@ -322,6 +350,7 @@ async function persistEditableSnapshot() {
     request: readRequest(),
     draft_text: els.proposal.value,
     audit: els.audit.textContent,
+    pdf: currentPdf(),
     error: null,
   });
 }
@@ -399,6 +428,7 @@ async function finishDraftJob(jobId) {
     result: draft,
     draft_text: outputText,
     audit,
+    pdf: null,
     error: null,
     started_at: currentState?.started_at,
   });
@@ -415,6 +445,7 @@ async function restoreDraftState(stateToRestore = null) {
   if (state.draft_text) els.proposal.value = state.draft_text;
   if (state.audit) els.audit.textContent = state.audit;
   els.copy.disabled = !els.proposal.value;
+  setPdfControls(state.pdf || null);
 
   if (state.phase === "succeeded" && state.result && state.job) {
     renderDraft(state.job, state.result);
@@ -482,6 +513,7 @@ els.draft.addEventListener("click", async () => {
       request,
       draft_text: "",
       audit: "",
+      pdf: null,
       started_at: nowIso(),
       error: null,
     });
@@ -501,6 +533,57 @@ els.draft.addEventListener("click", async () => {
   }
 });
 
+async function createPdf(draftId) {
+  const apiBase = await backendUrl();
+  const response = await fetch(`${apiBase}/drafts/${encodeURIComponent(draftId)}/pdf`, { method: "POST" });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Backend returned ${response.status}`);
+  }
+  return response.json();
+}
+
+async function revealPdf(draftId) {
+  const apiBase = await backendUrl();
+  const response = await fetch(`${apiBase}/drafts/${encodeURIComponent(draftId)}/pdf/reveal`, { method: "POST" });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Backend returned ${response.status}`);
+  }
+  return response.json();
+}
+
+els.generatePdf.addEventListener("click", async () => {
+  const draftId = currentDraftId();
+  if (!draftId) return;
+  try {
+    els.generatePdf.disabled = true;
+    setStatus("Generating PDF...");
+    const pdf = await createPdf(draftId);
+    await patchDraftState({ pdf });
+    setPdfControls(pdf);
+    setStatus("PDF generated.");
+  } catch (error) {
+    setPdfControls(currentPdf());
+    setStatus(error.message, "error");
+  }
+});
+
+els.openPdfFolder.addEventListener("click", async () => {
+  const draftId = currentDraftId();
+  if (!draftId) return;
+  try {
+    els.openPdfFolder.disabled = true;
+    setStatus("Opening Finder...");
+    const result = await revealPdf(draftId);
+    setStatus(result.opened ? "Opened in Finder." : "Could not open Finder.", result.opened ? "idle" : "error");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    setPdfControls(currentPdf());
+  }
+});
+
 els.copy.addEventListener("click", async () => {
   await navigator.clipboard.writeText(els.proposal.value);
   setStatus("Copied draft.");
@@ -513,8 +596,10 @@ els.settings.addEventListener("click", () => {
 [els.source, els.sourceUrl, els.title, els.company, els.location, els.description, els.skills, els.employmentType, els.remoteStatus, els.companyContext, els.recruiterContext, els.responsibilities, els.requirements, els.niceToHaves, els.questions, els.draftType, els.notes].forEach((element) => {
   element.addEventListener("input", scheduleEditableSnapshot);
   element.addEventListener("input", syncSourceFields);
+  element.addEventListener("input", () => setPdfControls(currentPdf()));
   element.addEventListener("change", scheduleEditableSnapshot);
   element.addEventListener("change", syncSourceFields);
+  element.addEventListener("change", () => setPdfControls(currentPdf()));
 });
 
 async function initializePopup() {

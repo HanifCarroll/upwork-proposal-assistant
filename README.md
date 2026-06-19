@@ -20,6 +20,7 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 - Keeps popup state in `chrome.storage.local`, so closing and reopening the popup resumes an active job.
 - Provides a Chrome options page for configuring the local backend URL.
 - Drafts cover letters and Upwork proposals.
+- Generates professional PDF cover letters and can reveal the generated file in Finder.
 
 ## Architecture
 
@@ -90,6 +91,8 @@ Supported environment variables:
 | `UPWORK_PROPOSAL_PORTFOLIO_ROOT` | `examples/portfolio` | Source directory for profile, offers, and project proof points. |
 | `UPWORK_PROPOSAL_CONTEXT_DIR` | `data/context` | Generated context cache. |
 | `UPWORK_PROPOSAL_RUNTIME_DIR` | `.runtime` | Runtime directory for local backend artifacts. |
+| `UPWORK_PROPOSAL_PDF_OUTPUT_DIR` | `.runtime/cover-letters` | Directory where generated cover letter PDFs are saved. |
+| `UPWORK_PROPOSAL_RESUME_PDF_PATH` | `~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Hanif-Carroll-Resume.pdf` | Resume PDF used for cover letter letterhead data. Phone-like contact items are omitted from exports. |
 | `UPWORK_PROPOSAL_DB_PATH` | `.runtime/drafts.db` | SQLite database path. |
 | `UPWORK_PROPOSAL_CODEX_RUNS_DIR` | `.runtime/codex-runs` | Per-run Codex workspaces. |
 | `UPWORK_PROPOSAL_CODEX_BINARY` | `codex` | Codex CLI executable. |
@@ -171,6 +174,9 @@ Useful local endpoints:
 - `GET /draft-jobs/{job_id}`: poll job status and result.
 - `POST /draft`: synchronous draft endpoint for debugging.
 - `GET /drafts/{draft_id}`: fetch a stored completed draft.
+- `POST /drafts/{draft_id}/pdf`: generate a PDF for a stored cover letter draft.
+- `GET /drafts/{draft_id}/pdf`: download the generated cover letter PDF.
+- `POST /drafts/{draft_id}/pdf/reveal`: generate the PDF if needed and reveal it in Finder on macOS.
 
 Job stages:
 
@@ -201,6 +207,14 @@ Every draft response includes:
 
 The backend stores the original request and one draft JSON payload. The draft includes role classification, application strategy, selected and rejected projects, decisions, claims, and warnings. That makes it possible to trace application language back to the job snapshot, personal context, or user notes that caused it.
 
+## PDF Cover Letters
+
+PDF export is available for completed `cover_letter` drafts. The backend renders the saved `draft_text` without rewriting it, adds a restrained resume-derived letterhead, and saves the file under `UPWORK_PROPOSAL_PDF_OUTPUT_DIR`.
+
+The default resume source is the iCloud Downloads resume path shown in Configuration. The exporter reads only the resume header/contact lines needed for letterhead and skips phone-like contact items.
+
+The popup enables `Generate PDF` after a cover letter draft succeeds. After generation, `Finder` asks the local backend to reveal the generated PDF file. The backend only reveals files it generated under the configured PDF output directory.
+
 ## Privacy And Data Retention
 
 This is a local-first tool, but it does store sensitive working data.
@@ -209,6 +223,7 @@ Stored locally:
 
 - Chrome extension state in `chrome.storage.local`: current request, job id, progress, draft text, and audit text.
 - SQLite data in `.runtime/drafts.db`: job details, user notes, draft text, and audit trail.
+- Generated cover letter PDFs in `.runtime/cover-letters/` by default.
 - Codex run workspaces in `.runtime/codex-runs/`: final JSON messages from individual Codex runs.
 - Generated context in `data/context/`: profile, offers, and project proof points derived from your configured context source.
 

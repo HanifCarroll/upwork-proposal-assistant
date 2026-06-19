@@ -21,12 +21,18 @@ def env_int(name: str, default: int) -> int:
     return int(value)
 
 
+def default_resume_pdf_path() -> Path:
+    return Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Downloads" / "Hanif-Carroll-Resume.pdf"
+
+
 @dataclass(frozen=True)
 class AppPaths:
     repo_root: Path = REPO_ROOT
     portfolio_root: Path = env_path("UPWORK_PROPOSAL_PORTFOLIO_ROOT", DEFAULT_PORTFOLIO_ROOT)
     context_dir: Path = env_path("UPWORK_PROPOSAL_CONTEXT_DIR", REPO_ROOT / "data" / "context")
     runtime_dir: Path = env_path("UPWORK_PROPOSAL_RUNTIME_DIR", REPO_ROOT / ".runtime")
+    pdf_output_dir: Path = env_path("UPWORK_PROPOSAL_PDF_OUTPUT_DIR", REPO_ROOT / ".runtime" / "cover-letters")
+    resume_pdf_path: Path = env_path("UPWORK_PROPOSAL_RESUME_PDF_PATH", default_resume_pdf_path())
     db_path: Path = env_path("UPWORK_PROPOSAL_DB_PATH", REPO_ROOT / ".runtime" / "drafts.db")
     codex_runs_dir: Path = env_path("UPWORK_PROPOSAL_CODEX_RUNS_DIR", REPO_ROOT / ".runtime" / "codex-runs")
     codex_binary: str = os.environ.get("UPWORK_PROPOSAL_CODEX_BINARY", "codex")
@@ -39,4 +45,5 @@ class AppPaths:
     def ensure_runtime(self) -> None:
         self.context_dir.mkdir(parents=True, exist_ok=True)
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
+        self.pdf_output_dir.mkdir(parents=True, exist_ok=True)
         self.codex_runs_dir.mkdir(parents=True, exist_ok=True)

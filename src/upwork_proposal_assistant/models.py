@@ -258,3 +258,17 @@ class DraftJobStatus(BaseModel):
 class ReindexResponse(BaseModel):
     project_count: int
     context_dir: str
+
+
+class PdfExportResponse(BaseModel):
+    draft_id: str
+    filename: str
+    pdf_path: str
+    download_url: str
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RevealPdfResponse(BaseModel):
+    draft_id: str
+    pdf_path: str
+    opened: bool
