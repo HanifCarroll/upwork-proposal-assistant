@@ -18,6 +18,7 @@ def test_extension_has_no_stale_compatibility_path() -> None:
     assert "extractTextSkills" not in content_script
     assert "inferRemoteStatus" not in content_script
     assert "inferEmploymentType" not in content_script
+    assert "extractExplicitSkills" not in content_script
     assert "sectionSummary" not in content_script
     assert "listAfterHeading" not in content_script
     assert "visibleText" not in content_script
@@ -36,6 +37,8 @@ def test_extension_has_no_stale_compatibility_path() -> None:
     assert '"h3"' not in content_script
     assert '"article"' not in content_script
     assert "article h" not in content_script
+    assert ".slice(" not in content_script
+    assert "[class*=" not in content_script
 
 
 def test_dice_extraction_does_not_send_page_wide_text() -> None:

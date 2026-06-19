@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-from upwork_proposal_assistant.models import ContextBundle, ContextProject, DraftRequest, OfferAngle, UpworkProject
-from upwork_proposal_assistant.selector import select_context
+from upwork_proposal_assistant.models import (
+    ContextBundle,
+    ContextProject,
+    ContextSelectionPlan,
+    DraftRequest,
+    OfferAngle,
+    OpportunitySnapshot,
+)
+from upwork_proposal_assistant.selector import selection_from_plan
 
 
-def test_select_context_prefers_ai_workflow_and_matching_project() -> None:
+def test_selection_from_plan_uses_model_selected_angle_and_projects() -> None:
     bundle = ContextBundle(
         profile="Profile",
         offers=[
@@ -41,15 +48,41 @@ def test_select_context_prefers_ai_workflow_and_matching_project() -> None:
         ],
     )
     request = DraftRequest(
-        project=UpworkProject(
+        opportunity=OpportunitySnapshot(
             title="Need Playwright automation",
             description="Use OpenAI to review scraped listing evidence.",
             skills=["Playwright", "OpenAI"],
+            source_text="Need Playwright automation Use OpenAI to review scraped listing evidence.",
         )
     )
+    plan = ContextSelectionPlan.model_validate(
+        {
+            "role_classification": "AI workflow automation",
+            "selected_angle": {
+                "key": "ai_workflow_system",
+                "label": "AI workflow",
+                "promise": "Auditable AI",
+                "caused_by": ["opportunity.description", "opportunity.skills"],
+            },
+            "selected_project_slugs": ["apartment-finder"],
+            "rejected_projects": [
+                {
+                    "slug": "site",
+                    "reason": "Website launch proof is weaker for automation work.",
+                    "caused_by": ["project.site.claim"],
+                }
+            ],
+            "application_strategy": "Lead with automation evidence.",
+            "allowed_claims": [],
+            "decisions": [],
+            "warnings": [],
+        }
+    )
 
-    selection = select_context(bundle, request)
+    selection = selection_from_plan(bundle, request, plan)
 
     assert selection.angle.key == "ai_workflow_system"
     assert selection.projects[0].slug == "apartment-finder"
-    assert selection.selection_decisions[0].caused_by
+    assert selection.rejected_projects[0].slug == "site"
+    assert selection.selection_decisions[0].audit_id == "model-selection"
+    assert "opportunity.source_text" in {evidence.ref for evidence in selection.source_evidence}

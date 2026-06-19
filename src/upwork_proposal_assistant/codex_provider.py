@@ -123,12 +123,8 @@ def _parse_json_message(raw: str) -> dict[str, object]:
     text = raw.strip()
     try:
         value = json.loads(text)
-    except json.JSONDecodeError:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            raise CodexProviderError("codex output was not JSON") from None
-        value = json.loads(text[start : end + 1])
+    except json.JSONDecodeError as exc:
+        raise CodexProviderError("codex output was not JSON") from exc
     if not isinstance(value, dict):
         raise CodexProviderError("codex output JSON was not an object")
     return value

@@ -122,7 +122,7 @@
     return "";
   }
 
-  function extractExplicitSkills(root = document) {
+  function upworkSkills(root) {
     const domSkills = Array.from(
       root.querySelectorAll(
         '[data-qa-skill-key] span, [data-qa-skill-uid] span, [data-test="attr-item"], a[href*="ontology_skill_uid"], a[href*="/cat/"], a[href*="/freelance-jobs/"]'
@@ -130,7 +130,7 @@
     )
       .map((node) => clean(node.textContent || ""))
       .filter(Boolean);
-    return unique(domSkills).slice(0, 24);
+    return unique(domSkills);
   }
 
   function jsonLdStringList(value) {
@@ -146,7 +146,7 @@
     return unique([
       ...jsonLdStringList(job?.skills),
       ...jsonLdStringList(job?.occupationalCategory),
-    ]).slice(0, 24);
+    ]);
   }
 
   function sourceTextFrom(values) {
@@ -191,7 +191,7 @@
       skills,
       application_questions: values.application_questions || [],
       recruiter_or_client_context: clean(values.recruiter_or_client_context),
-      source_text: sourceTextFrom({ ...values, description, skills }).slice(0, 12000),
+      source_text: sourceTextFrom({ ...values, description, skills }),
       extraction_confidence: values.extraction_confidence || "medium",
       extraction_warnings: values.extraction_warnings || [],
     };
@@ -234,7 +234,7 @@
           ], root),
         description,
         compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], root),
-        skills: extractExplicitSkills(root),
+        skills: upworkSkills(root),
         recruiter_or_client_context: firstText([
           '[data-test="client-info"]',
           '[data-test="client-history"]',
@@ -250,7 +250,7 @@
     matches: () => location.hostname.includes("dice.com"),
     async extract() {
       const job = jobPostingJsonLd();
-      const description = htmlToText(job?.description) || firstText(['[class*="jobDescription"]']);
+      const description = htmlToText(job?.description);
       const extractionWarnings = description ? [] : ["Dice job description was not found; review the snapshot before drafting."];
       return opportunity("dice", {
         title: clean(job?.title),
@@ -282,7 +282,7 @@
         compensation: firstText(['[data-testid="jobsearch-JobMetadataHeader-item"]']),
         employment_type: "",
         description,
-        skills: extractExplicitSkills(),
+        skills: [],
         extraction_confidence: description ? "medium" : "low",
         extraction_warnings: description ? [] : ["Indeed job description element was not found; review the snapshot before drafting."],
       });
@@ -293,10 +293,10 @@
     id: "ziprecruiter",
     matches: () => location.hostname.includes("ziprecruiter.com"),
     async extract() {
-      const title = firstText(['[data-testid="job-card-title"]', '[data-testid="job-title"]', '[class*="job_title"]']);
+      const title = firstText(['[data-testid="job-card-title"]', '[data-testid="job-title"]']);
       const company = firstText(['[data-testid="job-card-company"]']);
       const locationText = firstText(['[data-testid="job-card-location"]']);
-      const description = firstText(['[data-testid="jobDescriptionText"]', '[data-testid="job-description"]', '[class*="job_description"]']);
+      const description = firstText(['[data-testid="jobDescriptionText"]', '[data-testid="job-description"]']);
       return opportunity("ziprecruiter", {
         title,
         company,
@@ -305,7 +305,7 @@
         employment_type: "",
         remote_status: "",
         description,
-        skills: extractExplicitSkills(),
+        skills: [],
         extraction_confidence: description ? "medium" : "low",
         extraction_warnings: description ? [] : ["ZipRecruiter job description element was not found; review the snapshot before drafting."],
       });
@@ -330,7 +330,7 @@
         remote_status: "",
         description,
         requirements: requirementsText ? [requirementsText] : [],
-        skills: extractExplicitSkills(),
+        skills: [],
         extraction_confidence: description ? "high" : "low",
         extraction_warnings: description ? [] : ["Robert Half job detail region was not found; review the snapshot before drafting."],
       });
@@ -349,7 +349,7 @@
     const skills = Array.from(root.querySelectorAll("[data-qa-skill-key] span, [data-qa-skill-uid] span"))
       .map((node) => clean(node.textContent || ""))
       .filter(Boolean);
-    return unique(skills).slice(0, 20);
+    return unique(skills);
   }
 
   async function expandDetailsIfNeeded(detailsRoot) {
