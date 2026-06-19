@@ -87,7 +87,7 @@ def test_pipeline_uses_model_led_context_selection(tmp_path: Path) -> None:
                 "Jira, and roadmap execution."
             ),
             skills=["React", "TypeScript"],
-            raw_text="Similar job says launch your career, but that text is unrelated page chrome.",
+            source_text="Similar job says launch your career, but that text is unrelated page chrome.",
         )
     )
 

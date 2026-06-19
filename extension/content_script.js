@@ -21,6 +21,18 @@
     return "";
   }
 
+  function selectedText(element) {
+    return clean(element?.textContent || "");
+  }
+
+  function firstElement(selectors, root = document) {
+    for (const selector of selectors) {
+      const element = root.querySelector(selector);
+      if (element) return element;
+    }
+    return null;
+  }
+
   function htmlToText(html) {
     const template = document.createElement("template");
     template.innerHTML = html || "";
@@ -93,7 +105,7 @@
   }
 
   function employmentTypeFromJsonLd(job) {
-    const value = jsonLdTextList(job?.employmentType).join(" ");
+    const value = jsonLdStringList(job?.employmentType).join(" ");
     if (!value) return "";
     const normalized = value.toUpperCase().replace(/[_\s]+/g, "_");
     const labels = {
@@ -117,29 +129,51 @@
       )
     )
       .map((node) => clean(node.textContent || ""))
-      .filter((value) => value.length > 1 && value.length < 45);
+      .filter(Boolean);
     return unique(domSkills).slice(0, 24);
   }
 
-  function jsonLdTextList(value) {
+  function jsonLdStringList(value) {
     if (!value) return [];
-    if (Array.isArray(value)) return value.flatMap(jsonLdTextList);
+    if (Array.isArray(value)) return value.flatMap(jsonLdStringList);
     if (typeof value === "object") {
-      return [value.name, value.description, value.value].flatMap(jsonLdTextList);
+      return [value.name, value.value, value.termCode].flatMap(jsonLdStringList);
     }
     return clean(String(value)).split(/[,;|]/).map(clean).filter(Boolean);
   }
 
   function diceJobSkills(job) {
     return unique([
-      ...jsonLdTextList(job?.skills),
-      ...jsonLdTextList(job?.occupationalCategory),
+      ...jsonLdStringList(job?.skills),
+      ...jsonLdStringList(job?.occupationalCategory),
     ]).slice(0, 24);
   }
 
+  function sourceTextFrom(values) {
+    return clean(
+      [
+        values.title,
+        values.company,
+        values.location,
+        values.compensation,
+        values.employment_type,
+        values.remote_status,
+        values.description,
+        ...(values.responsibilities || []),
+        ...(values.requirements || []),
+        ...(values.nice_to_haves || []),
+        ...(values.skills || []),
+        ...(values.application_questions || []),
+        values.recruiter_or_client_context,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+  }
+
   function opportunity(source, values) {
-    const raw = clean(values.raw_text || values.description);
     const description = clean(values.description);
+    const skills = unique(values.skills || []);
     return {
       source,
       source_url: values.source_url || location.href,
@@ -154,13 +188,19 @@
       responsibilities: values.responsibilities || [],
       requirements: values.requirements || [],
       nice_to_haves: values.nice_to_haves || [],
-      skills: unique(values.skills || extractExplicitSkills()),
+      skills,
       application_questions: values.application_questions || [],
       recruiter_or_client_context: clean(values.recruiter_or_client_context),
-      raw_text: raw.slice(0, 12000),
+      source_text: sourceTextFrom({ ...values, description, skills }).slice(0, 12000),
       extraction_confidence: values.extraction_confidence || "medium",
       extraction_warnings: values.extraction_warnings || [],
     };
+  }
+
+  function upworkDescription(root = document) {
+    const selectors = ['[data-test="job-description"]', '[data-test="Description"]', '[data-test="description"]'];
+    if (root.matches?.(selectors.join(", "))) return selectedText(root);
+    return selectedText(firstElement(selectors, root));
   }
 
   const upworkAdapter = {
@@ -170,45 +210,36 @@
       const proposalDetails = proposalJobDetailsRoot();
       if (proposalDetails) {
         await expandDetailsIfNeeded(proposalDetails);
-        const detailsText = clean(proposalDetails.textContent || "");
+        const description = upworkDescription(proposalDetails);
         return opportunity("upwork", {
-          title: firstText(["h1", "h2", "h3"], proposalDetails),
-          description: detailsText,
+          title: firstText(['[data-test="job-title"]', '[data-test="job-tile-title"]', '[data-test="Title"]'], proposalDetails),
+          description,
           compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], proposalDetails),
           skills: extractProposalSkills(proposalDetails),
           recruiter_or_client_context: "",
-          raw_text: detailsText,
-          extraction_confidence: "high",
+          extraction_confidence: description ? "high" : "low",
+          extraction_warnings: description ? [] : ["Upwork job description element was not found; review the snapshot before drafting."],
         });
       }
 
       const card = firstUpworkJobCard();
-      const cardText = clean(card?.textContent || "");
+      const root = card || document;
+      const description = upworkDescription(root);
       return opportunity("upwork", {
         title:
           firstText([
-            'h1[data-test="job-title"]',
             '[data-test="job-title"]',
             '[data-test="job-tile-title"]',
-            "h1",
             '[data-test="Title"]',
-          ], card || document),
-        description:
-          firstText([
-            '[data-test="Description"]',
-            '[data-test="job-description"]',
-            '[data-test="description"]',
-            "article",
-          ], card || document),
-        compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], card || document),
-        skills: extractExplicitSkills(card || document),
+          ], root),
+        description,
+        compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], root),
+        skills: extractExplicitSkills(root),
         recruiter_or_client_context: firstText([
           '[data-test="client-info"]',
           '[data-test="client-history"]',
           '[data-test="buyer-info"]',
-          "aside",
         ]),
-        raw_text: cardText,
         extraction_warnings: card ? [] : ["Upwork job card was not found; review the snapshot before drafting."],
       });
     },
@@ -219,12 +250,10 @@
     matches: () => location.hostname.includes("dice.com"),
     async extract() {
       const job = jobPostingJsonLd();
-      const headerText = firstText(['[data-testid="job-detail-header-card"]']);
       const description = htmlToText(job?.description) || firstText(['[class*="jobDescription"]']);
-      const rawText = clean([headerText, description].filter(Boolean).join(" "));
       const extractionWarnings = description ? [] : ["Dice job description was not found; review the snapshot before drafting."];
       return opportunity("dice", {
-        title: clean(job?.title || firstText(["h1"])),
+        title: clean(job?.title),
         company: orgName(job?.hiringOrganization) || firstText(['[data-testid="job-detail-header-card"] a']),
         location: locationFromJsonLd(job) || firstText(['[data-testid="locationTypeBadge"]']),
         compensation: salaryFromJsonLd(job),
@@ -232,7 +261,6 @@
         remote_status: remoteStatusFromJsonLd(job),
         description,
         skills: diceJobSkills(job),
-        raw_text: rawText || description || headerText,
         extraction_confidence: job && description ? "high" : "medium",
         extraction_warnings: extractionWarnings,
       });
@@ -244,10 +272,9 @@
     matches: () => location.hostname.includes("indeed.com"),
     async extract() {
       const description = firstText(['#jobDescriptionText', '[data-testid="jobsearch-JobComponent-description"]']);
-      const title = firstText(['[data-testid="jobsearch-JobInfoHeader-title"]', "h1"]);
+      const title = firstText(['[data-testid="jobsearch-JobInfoHeader-title"]']);
       const company = firstText(['[data-testid="inlineHeader-companyName"]', '[data-testid="company-name"]']);
       const location = firstText(['[data-testid="jobsearch-JobInfoHeader-companyLocation"]']);
-      const rawText = clean([title, company, location, description].filter(Boolean).join(" "));
       return opportunity("indeed", {
         title,
         company,
@@ -256,7 +283,6 @@
         employment_type: "",
         description,
         skills: extractExplicitSkills(),
-        raw_text: rawText,
         extraction_confidence: description ? "medium" : "low",
         extraction_warnings: description ? [] : ["Indeed job description element was not found; review the snapshot before drafting."],
       });
@@ -267,13 +293,10 @@
     id: "ziprecruiter",
     matches: () => location.hostname.includes("ziprecruiter.com"),
     async extract() {
-      const firstArticle = document.querySelector("article");
-      const cardText = clean(firstArticle?.textContent || "");
-      const title = firstText(["article h2", "article h3"]);
+      const title = firstText(['[data-testid="job-card-title"]', '[data-testid="job-title"]', '[class*="job_title"]']);
       const company = firstText(['[data-testid="job-card-company"]']);
       const locationText = firstText(['[data-testid="job-card-location"]']);
       const description = firstText(['[data-testid="jobDescriptionText"]', '[data-testid="job-description"]', '[class*="job_description"]']);
-      const rawText = clean([cardText, description].filter(Boolean).join(" "));
       return opportunity("ziprecruiter", {
         title,
         company,
@@ -283,7 +306,6 @@
         remote_status: "",
         description,
         skills: extractExplicitSkills(),
-        raw_text: rawText,
         extraction_confidence: description ? "medium" : "low",
         extraction_warnings: description ? [] : ["ZipRecruiter job description element was not found; review the snapshot before drafting."],
       });
@@ -309,7 +331,6 @@
         description,
         requirements: requirementsText ? [requirementsText] : [],
         skills: extractExplicitSkills(),
-        raw_text: clean([title, location, compensation, description, requirementsText].filter(Boolean).join(" ")),
         extraction_confidence: description ? "high" : "low",
         extraction_warnings: description ? [] : ["Robert Half job detail region was not found; review the snapshot before drafting."],
       });
@@ -321,7 +342,7 @@
   }
 
   function firstUpworkJobCard() {
-    return document.querySelector('[data-test="job-tile"], article');
+    return document.querySelector('[data-test="job-tile"]');
   }
 
   function extractProposalSkills(root) {
@@ -344,9 +365,7 @@
     const adapter = adapters.find((candidate) => candidate.matches());
     if (!adapter) {
       return opportunity("generic", {
-        title: firstText(["h1", "h2"]),
         description: "",
-        raw_text: "",
         extraction_confidence: "low",
         extraction_warnings: ["No site adapter matched this page; no generic page text was extracted."],
       });

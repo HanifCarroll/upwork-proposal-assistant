@@ -11,7 +11,7 @@ DraftType = Literal["upwork_proposal", "cover_letter", "short_application_messag
 
 
 class OpportunitySnapshot(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="ignore")
 
     source: str = "unknown"
     source_url: str = ""
@@ -29,7 +29,7 @@ class OpportunitySnapshot(BaseModel):
     skills: list[str] = Field(default_factory=list)
     application_questions: list[str] = Field(default_factory=list)
     recruiter_or_client_context: str = ""
-    raw_text: str = ""
+    source_text: str = ""
     extraction_confidence: str = "medium"
     extraction_warnings: list[str] = Field(default_factory=list)
 
@@ -49,7 +49,7 @@ class OpportunitySnapshot(BaseModel):
                 " ".join(self.skills),
                 " ".join(self.application_questions),
                 self.recruiter_or_client_context,
-                self.raw_text,
+                self.source_text,
             ]
         )
 
@@ -78,7 +78,7 @@ class UpworkProject(BaseModel):
             description=self.description,
             skills=self.skills,
             recruiter_or_client_context=self.client_context,
-            raw_text=self.search_text(),
+            source_text=self.search_text(),
             extraction_confidence="medium",
         )
 

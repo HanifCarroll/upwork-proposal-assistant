@@ -140,6 +140,7 @@ def _build_evidence(
         SourceEvidence(ref="opportunity.skills", text=", ".join(opportunity.skills)),
         SourceEvidence(ref="opportunity.application_questions", text=" ".join(opportunity.application_questions)),
         SourceEvidence(ref="opportunity.recruiter_or_client_context", text=opportunity.recruiter_or_client_context),
+        SourceEvidence(ref="opportunity.source_text", text=opportunity.source_text),
         SourceEvidence(ref="user.notes", text=request.user_notes),
         SourceEvidence(ref=angle.source_ref, text=f"{angle.label}: {angle.promise}"),
     ]
@@ -223,7 +224,7 @@ def _source_map(bundle: ContextBundle, request: DraftRequest) -> dict[str, str]:
         "opportunity.skills": ", ".join(opportunity.skills),
         "opportunity.application_questions": " ".join(opportunity.application_questions),
         "opportunity.recruiter_or_client_context": opportunity.recruiter_or_client_context,
-        "opportunity.raw_text": opportunity.raw_text,
+        "opportunity.source_text": opportunity.source_text,
         "user.notes": request.user_notes,
     }
     for offer in bundle.offers:

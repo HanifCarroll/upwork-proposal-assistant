@@ -28,6 +28,14 @@ def test_extension_has_no_stale_compatibility_path() -> None:
     assert "Job Post Details" not in content_script
     assert "Showing results" not in content_script
     assert "document.title" not in content_script
+    assert "raw_text" not in content_script
+    assert "raw_text" not in popup
+    assert "value.description" not in content_script
+    assert '"h1"' not in content_script
+    assert '"h2"' not in content_script
+    assert '"h3"' not in content_script
+    assert '"article"' not in content_script
+    assert "article h" not in content_script
 
 
 def test_dice_extraction_does_not_send_page_wide_text() -> None:
@@ -36,5 +44,9 @@ def test_dice_extraction_does_not_send_page_wide_text() -> None:
 
     assert "visibleText()" not in dice_block
     assert "fullText" not in dice_block
-    assert 'const rawText = clean([headerText, description].filter(Boolean).join(" "));' in dice_block
-    assert "raw_text: rawText || description || headerText" in dice_block
+    assert "headerText" not in dice_block
+    assert "rawText" not in dice_block
+    assert "raw_text" not in dice_block
+    assert "job?.description" in dice_block
+    assert "title: clean(job?.title)" in dice_block
+    assert 'firstText(["h1"])' not in dice_block

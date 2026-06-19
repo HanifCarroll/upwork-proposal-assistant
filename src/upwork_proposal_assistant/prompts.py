@@ -24,9 +24,9 @@ Use the whole supplied context. Do not rely on keyword counts or string matches.
 
 Source rules:
 - Use only supplied context. Do not invent experience, metrics, tools, client names, timelines, or outcomes.
-- Treat `opportunity.raw_text` as noisy supporting material. Prefer structured opportunity fields for role classification, and ignore obvious navigation, ads, footer text, and similar-job snippets.
+- Treat `opportunity.source_text` as supporting material assembled from extracted fields. Prefer the named structured opportunity fields when they are more specific.
 - `profile` is source ref `profile`.
-- Opportunity fields are source refs like `opportunity.description`, `opportunity.skills`, and `opportunity.raw_text`.
+- Opportunity fields are source refs like `opportunity.description`, `opportunity.skills`, and `opportunity.source_text`.
 - Offer refs use each offer's `source_ref`.
 - Project refs use each project's `source_refs` keys, plus `project.<slug>.claim` and `project.<slug>.technologies`.
 

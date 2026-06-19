@@ -143,6 +143,10 @@ function opportunitySourceUrl(opportunity) {
   return opportunity?.source_url || opportunity?.url || "";
 }
 
+function cleanJoined(values) {
+  return values.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+}
+
 function clearDraftOutput() {
   els.proposal.value = "";
   els.audit.textContent = "";
@@ -194,7 +198,6 @@ function fillOpportunity(opportunity) {
   els.title.dataset.url = opportunity.source_url || opportunity.url || "";
   els.title.dataset.remoteStatus = opportunity.remote_status || "";
   els.title.dataset.employmentType = opportunity.employment_type || "";
-  els.title.dataset.rawText = opportunity.raw_text || "";
   els.title.dataset.questions = JSON.stringify(opportunity.application_questions || []);
   els.title.dataset.warnings = JSON.stringify(opportunity.extraction_warnings || []);
   if (opportunity.source === "upwork") {
@@ -230,7 +233,16 @@ function readRequest() {
     skills,
     application_questions: questions,
     recruiter_or_client_context: [els.company.value.trim(), els.location.value.trim()].filter(Boolean).join(" | "),
-    raw_text: els.title.dataset.rawText || els.description.value.trim(),
+    source_text: cleanJoined([
+      els.title.value.trim(),
+      els.company.value.trim(),
+      els.location.value.trim(),
+      els.budget.value.trim(),
+      els.title.dataset.employmentType || "",
+      els.title.dataset.remoteStatus || "",
+      els.description.value.trim(),
+      skills.join(" "),
+    ]),
     extraction_confidence: warnings.length ? "medium" : "high",
     extraction_warnings: warnings,
   };
