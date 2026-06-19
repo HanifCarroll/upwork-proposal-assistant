@@ -18,7 +18,7 @@ from upwork_proposal_assistant.models import (
     StageTiming,
     StoredDraft,
 )
-from upwork_proposal_assistant.prompts import build_draft_prompt, build_humanizer_prompt, build_selection_prompt
+from upwork_proposal_assistant.prompts import build_draft_prompt, build_selection_prompt
 from upwork_proposal_assistant.selector import selection_from_plan
 from upwork_proposal_assistant.storage import DraftStore, make_stored_draft
 
@@ -60,12 +60,15 @@ def run_draft_pipeline(
             on_timing=on_codex_timing,
         )
 
-    with _timed_stage("humanizer", selection, on_stage, on_stage_timing):
-        final_pass = codex.generate(
-            build_humanizer_prompt(first_pass, selection),
-            phase="humanizer",
-            on_timing=on_codex_timing,
-        )
+    final_pass = first_pass
+    # Humanizer is paused while first-pass cover-letter quality is evaluated.
+    # Re-enable this block when the real humanizer skill is ready to own the final edit.
+    # with _timed_stage("humanizer", selection, on_stage, on_stage_timing):
+    #     final_pass = codex.generate(
+    #         build_humanizer_prompt(first_pass, selection),
+    #         phase="humanizer",
+    #         on_timing=on_codex_timing,
+    #     )
 
     with _timed_stage("saving", selection, on_stage, on_stage_timing):
         stored = make_stored_draft(request, selection, first_pass, final_pass)

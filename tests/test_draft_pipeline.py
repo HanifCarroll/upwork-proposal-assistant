@@ -100,12 +100,14 @@ def test_pipeline_uses_model_led_context_selection(tmp_path: Path) -> None:
         store=store,
     )
 
-    assert [call[0] for call in codex.calls] == ["context_selection", "draft", "humanizer"]
+    assert [call[0] for call in codex.calls] == ["context_selection", "draft"]
     assert codex.calls[0][2] == paths.selection_schema_path
     assert '"available_projects"' in codex.calls[0][1]
     assert "mucho-hangouts" in codex.calls[0][1]
     assert "source_text" not in codex.calls[0][1]
     assert "unrelated page chrome" not in codex.calls[0][1]
+    assert result.stored.first_pass["proposal"] == "Draft from frontend staff augmentation."
+    assert result.stored.final_pass["proposal"] == "Draft from frontend staff augmentation."
     assert result.selection.angle.key == "frontend_staff_augmentation"
     assert [project.slug for project in result.selection.projects] == ["genrupt"]
     assert result.selection.role_classification == "frontend staff augmentation"

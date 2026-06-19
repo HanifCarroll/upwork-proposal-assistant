@@ -37,6 +37,7 @@ Selection rules:
 - Choose 0-3 project slugs from `available_projects`; prefer 1-2. Use no project if none is genuinely relevant.
 - Include rejected projects when they are plausible by surface keywords but strategically weak.
 - Put only application-safe factual claims in `allowed_claims[]`. Each claim must have source refs in `caused_by`.
+- When direct stack or domain proof is weak but the supplied profile/projects show broad, relevant adaptation across tools, domains, or product constraints, include one honest adaptability claim with concrete source refs.
 - Add warnings for weak evidence, noisy extraction, missing job details, or a role that should not use a project proof point.
 - Every important selection choice must appear in `decisions[]` with `caused_by` refs.
 
@@ -74,20 +75,30 @@ Return JSON matching the provided schema.
 Rules:
 - Set `draft_type` to the requested draft_type.
 - Put the main answer in both `primary_text` and `proposal` for compatibility.
-- For `cover_letter`, write a concise cover letter: 180-260 words unless the opportunity clearly needs less.
 - For `short_application_message`, write 80-140 words.
 - For `upwork_proposal`, write 120-180 words and end with a simple next-step question.
 - For `question_answers`, answer each supplied application question in `question_answers[]` and put a short intro in `primary_text`.
-- Open on the employer's role/problem, not a biography.
-- Mention 1-2 relevant proof points only if they are supported by source_evidence.
 - Treat `allowed_claims[]` as the preferred claim whitelist. Omit claims that do not help this application.
 - Follow `application_strategy`; it was selected from the complete portfolio context before drafting.
 - Do not resurrect rejected projects or angles.
-- Include one concrete first step or working approach.
-- Avoid "Dear hiring manager", "I am excited to apply", generic flattery, desperate sales language, and unsupported claims.
 - Every application claim must appear in `claims[]` with `caused_by` refs from source_evidence.
 - Every meaningful drafting decision must appear in `decisions[]` with `caused_by` refs from source_evidence.
 - Preserve the model selection decisions by including equivalent decision entries or stricter refinements.
+
+Cover-letter target:
+- For `cover_letter`, write a concise employer-facing job-platform cover letter for Dice, Indeed, ZipRecruiter, recruiter portals, or similar job boards.
+- Use 3-4 short paragraphs and 160-240 words unless the opportunity clearly needs less.
+- Address the hiring team directly and professionally.
+- Open with the role and the strongest supported reason this background fits.
+- Connect 1-2 specific experience points to the job requirements.
+- Add useful context beyond a resume: working style, adjacent domain fit, availability, contract setup, or ability to adapt to new tools and domains.
+- When the named stack or domain is not a direct match, keep the letter shorter, emphasize transferable experience honestly, and mention adaptability only if it is supported by `allowed_claims[]` or source evidence.
+- Close with interest in discussing fit for the role.
+
+Tone:
+- Sound like a qualified applicant writing to a recruiter or hiring manager.
+- Use clear sentences, concrete nouns, and direct claims supported by the source evidence.
+- Prefer framing like "I am applying for this role because..." and "My closest relevant experience is..." when it fits the opportunity.
 
 Context packet:
 ```json

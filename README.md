@@ -2,7 +2,7 @@
 
 A local Chrome extension and Python backend for drafting auditable job applications with `codex exec`.
 
-The extension extracts the current job opportunity, lets you review it, and sends it to a local FastAPI service. The backend sends the full saved context to Codex for model-led strategy selection, asks Codex for a structured draft, runs a final Codex pass through `$humanizer`, and stores the cover letter/proposal with an audit trail. The extension never submits applications.
+The extension extracts the current job opportunity, lets you review it, and sends it to a local FastAPI service. The backend sends the full saved context to Codex for model-led strategy selection, asks Codex for a structured draft, and stores the cover letter/proposal with an audit trail. The extension never submits applications.
 
 This project is not affiliated with Upwork, Dice, Indeed, ZipRecruiter, Robert Half, or any other job platform.
 
@@ -14,7 +14,7 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 - Supports Upwork, Dice, Indeed, ZipRecruiter, and Robert Half.
 - Lets you edit the extracted job snapshot before drafting.
 - Uses local saved context about you: profile, service offers, and project proof points.
-- Runs three Codex passes: strategy/context selection from the full portfolio, draft generation, then `$humanizer`.
+- Runs two Codex passes: strategy/context selection from the full portfolio, then draft generation.
 - Returns structured audit data for decisions, claims, source evidence, and warnings.
 - Persists draft jobs in SQLite so long Codex runs can be polled.
 - Keeps popup state in `chrome.storage.local`, so closing and reopening the popup resumes an active job.
@@ -31,7 +31,6 @@ Chrome popup
   -> FastAPI backend persists and runs the job
   -> codex exec selection pass sees profile, all offers, all projects, and the opportunity
   -> codex exec draft pass
-  -> codex exec $humanizer pass
   -> SQLite stores request, model-selected context, first draft pass, final pass
   -> popup polls job status and displays draft + audit trail
 ```
@@ -42,7 +41,6 @@ Chrome popup
 - `uv`
 - Chrome or another Chromium browser that supports Manifest V3 extensions
 - OpenAI Codex CLI available as `codex` on your `PATH`
-- A local `$humanizer` skill directory, by default `~/.codex/skills/humanizer`
 
 ## Quick Start
 
@@ -97,10 +95,10 @@ Supported environment variables:
 | `UPWORK_PROPOSAL_CODEX_RUNS_DIR` | `.runtime/codex-runs` | Per-run Codex workspaces. |
 | `UPWORK_PROPOSAL_CODEX_BINARY` | `codex` | Codex CLI executable. |
 | `UPWORK_PROPOSAL_CODEX_MODEL` | `gpt-5.5` | Model passed explicitly to `codex exec`. |
-| `UPWORK_PROPOSAL_CODEX_REASONING_EFFORT` | `xhigh` | Reasoning effort passed explicitly to `codex exec`. |
+| `UPWORK_PROPOSAL_CODEX_REASONING_EFFORT` | `low` | Reasoning effort passed explicitly to `codex exec`. |
 | `UPWORK_PROPOSAL_CODEX_TIMEOUT_SECONDS` | `180` | Timeout per Codex pass. |
 | `UPWORK_PROPOSAL_MAX_WORKERS` | `5` | Maximum concurrent async draft jobs. |
-| `UPWORK_PROPOSAL_HUMANIZER_SKILL` | `~/.codex/skills/humanizer` | Skill directory symlinked into Codex run workspaces. |
+| `UPWORK_PROPOSAL_HUMANIZER_SKILL` | `~/.codex/skills/humanizer` | Reserved for a future final-edit pass; the humanizer stage is currently skipped. |
 
 Example:
 
@@ -181,7 +179,6 @@ Job stages:
 - `queued`
 - `selecting_context`
 - `codex_draft`
-- `humanizer`
 - `saving`
 - `done`
 - `failed`
@@ -199,7 +196,7 @@ Every draft response includes:
 - `caused_by[]`: source refs that support each decision or claim.
 - `warnings[]`: issues the model surfaced during drafting.
 
-The backend stores the original request, model-selected context, first draft pass, and final humanized pass. The selection record includes role classification, application strategy, selected and rejected projects, allowed claims, decisions, source evidence, and warnings. That makes it possible to trace application language back to the job snapshot, personal context, or user notes that caused it.
+The backend stores the original request, model-selected context, first draft pass, and final draft pass. The selection record includes role classification, application strategy, selected and rejected projects, allowed claims, decisions, source evidence, and warnings. That makes it possible to trace application language back to the job snapshot, personal context, or user notes that caused it.
 
 ## Privacy And Data Retention
 
