@@ -13,10 +13,12 @@ def test_full_draft_prompt_requests_supported_adaptability_claims() -> None:
         ContextBundle(profile="Adapts across product constraints.", offers=[], projects=[]),
     )
 
-    assert "Use the full supplied context to choose the application strategy and write the draft in one pass" in prompt
+    assert "Use only the information below" in prompt
     assert "include one honest adaptability claim" in prompt
-    assert "concrete source refs" in prompt
+    assert "where it came from" in prompt
     assert "Put the generated application body in `draft_text`" in prompt
+    assert "choose a simple plan" not in prompt
+    assert "supplied context" not in prompt
     assert "primary_text" not in prompt
     assert "`proposal`" not in prompt
 
@@ -30,14 +32,15 @@ def test_cover_letter_prompt_targets_job_platform_letters() -> None:
     assert "employer-facing job-platform cover letter" in prompt
     assert "Dice, Indeed, ZipRecruiter" in prompt
     assert "ability to adapt to new tools and domains" in prompt
-    assert "When the named stack or domain is not a direct match" in prompt
-    assert "Technical proof-point translation" in prompt
+    assert "do not apologize or list what is missing" in prompt
+    assert "Explain experience simply" in prompt
     assert "plain business or product language" in prompt
     assert "Name only the 1-2 technical details" in prompt
     assert "implementation inventory" in prompt
-    assert "Adjacent-match framing" in prompt
-    assert "adaptability across unfamiliar tools, stacks, or domains" in prompt
-    assert "clear and concise" in prompt
+    assert "Similar experience" not in prompt
+    assert "Prefer framing like" not in prompt
+    assert "Do not sound like a compliance report" in prompt
+    assert "Be direct, calm, and specific" in prompt
 
 
 def test_draft_schema_rejects_old_output_fields() -> None:
