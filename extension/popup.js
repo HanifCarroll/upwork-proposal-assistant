@@ -168,7 +168,8 @@ async function extractProject() {
 async function sendExtractMessage(tabId) {
   const response = await chrome.tabs.sendMessage(tabId, { type: "APPLICATION_DRAFT_EXTRACT" });
   if (!response?.ok) throw new Error("Could not extract job details.");
-  return response.opportunity || response.project;
+  if (!response.opportunity) throw new Error("The page extractor did not return an opportunity snapshot.");
+  return response.opportunity;
 }
 
 async function captureActivePage({ statusText = "Review the current page snapshot before drafting." } = {}) {
@@ -235,15 +236,6 @@ function readRequest() {
   };
   return {
     opportunity,
-    project: {
-      title: opportunity.title,
-      description: opportunity.description,
-      budget: opportunity.compensation,
-      skills,
-      client_context: opportunity.recruiter_or_client_context,
-      url: opportunity.source_url,
-      captured_at: opportunity.captured_at,
-    },
     draft_type: els.draftType.value,
     user_notes: els.notes.value.trim(),
     proposal_style: "concise",

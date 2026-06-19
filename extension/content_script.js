@@ -4,42 +4,12 @@
   }
   globalThis.__upworkProposalAssistantLoaded = true;
 
-  const TECH_SKILLS = [
-    "AWS",
-    "Azure",
-    "Cybersecurity",
-    "Docker",
-    "FastAPI",
-    "FireMon",
-    "GitHub Actions",
-    "Java",
-    "JavaScript",
-    "Kafka",
-    "Kubernetes",
-    "Node.js",
-    "OpenShift",
-    "Palo Alto",
-    "Playwright",
-    "PostgreSQL",
-    "Python",
-    "React",
-    "REST API",
-    "Spring Boot",
-    "Supabase",
-    "Tailwind CSS",
-    "TypeScript",
-  ];
-
   function clean(text) {
     return (text || "").replace(/\s+/g, " ").trim();
   }
 
   function unique(values) {
     return Array.from(new Set(values.map(clean).filter(Boolean)));
-  }
-
-  function visibleText(root = document.body) {
-    return clean(root?.innerText || root?.textContent || "");
   }
 
   function firstText(selectors, root = document) {
@@ -49,10 +19,6 @@
       if (text) return text;
     }
     return "";
-  }
-
-  function findHeading(text) {
-    return Array.from(document.querySelectorAll("h1, h2, h3, h4")).find((node) => clean(node.textContent || "").toLowerCase() === text.toLowerCase()) || null;
   }
 
   function htmlToText(html) {
@@ -87,20 +53,6 @@
       const type = item["@type"];
       return type === "JobPosting" || (Array.isArray(type) && type.includes("JobPosting"));
     });
-  }
-
-  function extractCompensation(text) {
-    const patterns = [
-      /\$[\d,.]+\s*-\s*\$[\d,.]+\s*(?:\/?\s*(?:hr|hour|yr|year))?/i,
-      /\$[\d,.]+\s*(?:\/?\s*(?:hr|hour|yr|year))/i,
-      /\$[\d,.]+(?:\.\d+)?\s*(?:an hour|per hour|a year|per year)/i,
-      /DOE/i,
-    ];
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) return clean(match[0]).replace(/^doe$/i, "DOE");
-    }
-    return "";
   }
 
   function salaryFromJsonLd(job) {
@@ -140,76 +92,54 @@
     );
   }
 
-  function inferRemoteStatus(text) {
-    if (/hybrid/i.test(text)) return "Hybrid";
-    if (/remote/i.test(text)) return "Remote";
-    if (/on-site|onsite/i.test(text)) return "On-site";
+  function employmentTypeFromJsonLd(job) {
+    const value = jsonLdTextList(job?.employmentType).join(" ");
+    if (!value) return "";
+    const normalized = value.toUpperCase().replace(/[_\s]+/g, "_");
+    const labels = {
+      CONTRACTOR: "Contract",
+      TEMPORARY: "Contract",
+      FULL_TIME: "Full-time",
+      PART_TIME: "Part-time",
+    };
+    return labels[normalized] || clean(value);
+  }
+
+  function remoteStatusFromJsonLd(job) {
+    if (job?.jobLocationType === "TELECOMMUTE") return "Remote";
     return "";
   }
 
-  function inferEmploymentType(text) {
-    if (/contract|contractor|temporary|temp/i.test(text)) return "Contract";
-    if (/full[- ]time/i.test(text)) return "Full-time";
-    if (/part[- ]time/i.test(text)) return "Part-time";
-    return "";
-  }
-
-  function extractSkills(text, root = document) {
-    const blocked = new Set([
-      "Just not interested",
-      "Vague Description",
-      "Unrealistic Expectations",
-      "Too Many Applicants",
-      "Doesn't Match Skills",
-      "I am overqualified",
-      "Budget too low",
-      "Not in my preferred location",
-      "Skip skills",
-    ]);
+  function extractExplicitSkills(root = document) {
     const domSkills = Array.from(
       root.querySelectorAll(
-        '[data-test*="skill" i], [data-testid*="skill" i], [data-test="attr-item"], a[href*="ontology_skill_uid"], a[href*="/cat/"], a[href*="/freelance-jobs/"]'
+        '[data-qa-skill-key] span, [data-qa-skill-uid] span, [data-test="attr-item"], a[href*="ontology_skill_uid"], a[href*="/cat/"], a[href*="/freelance-jobs/"]'
       )
     )
       .map((node) => clean(node.textContent || ""))
-      .filter((value) => value.length > 1 && value.length < 45 && !blocked.has(value));
-    const textSkills = TECH_SKILLS.filter((skill) => new RegExp(`\\b${escapeRegExp(skill)}\\b`, "i").test(text));
-    return unique([...domSkills, ...textSkills]).slice(0, 24);
+      .filter((value) => value.length > 1 && value.length < 45);
+    return unique(domSkills).slice(0, 24);
   }
 
-  function escapeRegExp(value) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
-  function listAfterHeading(text, headingPattern, stopPattern) {
-    const heading = text.search(headingPattern);
-    if (heading === -1) return [];
-    const after = text.slice(heading).replace(headingPattern, "");
-    const stop = after.search(stopPattern);
-    const section = stop === -1 ? after : after.slice(0, stop);
-    return unique(section.split(/(?:•|\n|\. (?=[A-Z]))/).map((item) => item.replace(/^[-:;\s]+/, ""))).filter((item) => item.length > 20).slice(0, 12);
-  }
-
-  function sectionSummary(text) {
-    return {
-      responsibilities: listAfterHeading(text, /(?:Key Responsibilities|Responsibilities|What you(?:'|’)ll do):?/i, /(?:Required Qualifications|Requirements|Qualifications|Preferred|Benefits|Company|About|Technology Does)/i),
-      requirements: listAfterHeading(text, /(?:Required Qualifications|Requirements|Qualifications|Skills):?/i, /(?:Preferred|Benefits|Company|About|Technology Does|Equal Opportunity)/i),
-      nice_to_haves: listAfterHeading(text, /(?:Preferred Qualifications|Nice to Have|Bonus):?/i, /(?:Benefits|Company|About|Equal Opportunity)/i),
-    };
-  }
-
-  function selectedDetailText(markers) {
-    const text = visibleText();
-    for (const marker of markers) {
-      const index = text.indexOf(marker);
-      if (index !== -1) return clean(text.slice(index + marker.length));
+  function jsonLdTextList(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.flatMap(jsonLdTextList);
+    if (typeof value === "object") {
+      return [value.name, value.description, value.value].flatMap(jsonLdTextList);
     }
-    return text;
+    return clean(String(value)).split(/[,;|]/).map(clean).filter(Boolean);
+  }
+
+  function diceJobSkills(job) {
+    return unique([
+      ...jsonLdTextList(job?.skills),
+      ...jsonLdTextList(job?.occupationalCategory),
+    ]).slice(0, 24);
   }
 
   function opportunity(source, values) {
-    const raw = clean(values.raw_text || values.description || visibleText());
-    const description = clean(values.description || raw.slice(0, 8000));
+    const raw = clean(values.raw_text || values.description);
+    const description = clean(values.description);
     return {
       source,
       source_url: values.source_url || location.href,
@@ -219,29 +149,17 @@
       location: clean(values.location),
       compensation: clean(values.compensation),
       employment_type: clean(values.employment_type),
-      remote_status: clean(values.remote_status || inferRemoteStatus(`${values.location || ""} ${description} ${raw}`)),
+      remote_status: clean(values.remote_status),
       description,
       responsibilities: values.responsibilities || [],
       requirements: values.requirements || [],
       nice_to_haves: values.nice_to_haves || [],
-      skills: unique(values.skills || extractSkills(`${description} ${raw}`)),
+      skills: unique(values.skills || extractExplicitSkills()),
       application_questions: values.application_questions || [],
       recruiter_or_client_context: clean(values.recruiter_or_client_context),
       raw_text: raw.slice(0, 12000),
       extraction_confidence: values.extraction_confidence || "medium",
       extraction_warnings: values.extraction_warnings || [],
-    };
-  }
-
-  function legacyProject(snapshot) {
-    return {
-      title: snapshot.title,
-      description: snapshot.description,
-      budget: snapshot.compensation,
-      skills: snapshot.skills,
-      client_context: snapshot.recruiter_or_client_context || [snapshot.company, snapshot.location, snapshot.employment_type, snapshot.remote_status].filter(Boolean).join(" | "),
-      url: snapshot.source_url,
-      captured_at: snapshot.captured_at,
     };
   }
 
@@ -254,9 +172,9 @@
         await expandDetailsIfNeeded(proposalDetails);
         const detailsText = clean(proposalDetails.textContent || "");
         return opportunity("upwork", {
-          title: clean(proposalDetails.querySelector("h3")?.textContent || ""),
+          title: firstText(["h1", "h2", "h3"], proposalDetails),
           description: detailsText,
-          compensation: extractCompensation(detailsText || visibleText()),
+          compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], proposalDetails),
           skills: extractProposalSkills(proposalDetails),
           recruiter_or_client_context: "",
           raw_text: detailsText,
@@ -264,33 +182,34 @@
         });
       }
 
-      const { link, card } = firstUpworkJobCard();
+      const card = firstUpworkJobCard();
       const cardText = clean(card?.textContent || "");
-      const text = visibleText();
       return opportunity("upwork", {
         title:
           firstText([
             'h1[data-test="job-title"]',
             '[data-test="job-title"]',
+            '[data-test="job-tile-title"]',
             "h1",
             '[data-test="Title"]',
-          ]) || clean(link?.textContent || ""),
+          ], card || document),
         description:
           firstText([
             '[data-test="Description"]',
             '[data-test="job-description"]',
             '[data-test="description"]',
             "article",
-          ]) || cardText,
-        compensation: extractCompensation(cardText || text),
-        skills: extractSkills(cardText || text, card || document),
+          ], card || document),
+        compensation: firstText(['[data-test="budget"]', '[data-test="amount"]'], card || document),
+        skills: extractExplicitSkills(card || document),
         recruiter_or_client_context: firstText([
           '[data-test="client-info"]',
           '[data-test="client-history"]',
           '[data-test="buyer-info"]',
           "aside",
         ]),
-        raw_text: cardText || text,
+        raw_text: cardText,
+        extraction_warnings: card ? [] : ["Upwork job card was not found; review the snapshot before drafting."],
       });
     },
   };
@@ -302,20 +221,20 @@
       const job = jobPostingJsonLd();
       const headerText = firstText(['[data-testid="job-detail-header-card"]']);
       const description = htmlToText(job?.description) || firstText(['[class*="jobDescription"]']);
-      const fullText = clean(`${headerText} ${description} ${visibleText()}`);
-      const sections = sectionSummary(description || fullText);
+      const rawText = clean([headerText, description].filter(Boolean).join(" "));
+      const extractionWarnings = description ? [] : ["Dice job description was not found; review the snapshot before drafting."];
       return opportunity("dice", {
         title: clean(job?.title || firstText(["h1"])),
         company: orgName(job?.hiringOrganization) || firstText(['[data-testid="job-detail-header-card"] a']),
         location: locationFromJsonLd(job) || firstText(['[data-testid="locationTypeBadge"]']),
-        compensation: salaryFromJsonLd(job) || extractCompensation(fullText),
-        employment_type: inferEmploymentType(fullText),
-        remote_status: job?.jobLocationType === "TELECOMMUTE" ? "Remote" : inferRemoteStatus(fullText),
+        compensation: salaryFromJsonLd(job),
+        employment_type: employmentTypeFromJsonLd(job),
+        remote_status: remoteStatusFromJsonLd(job),
         description,
-        skills: extractSkills(fullText),
-        ...sections,
-        raw_text: fullText,
-        extraction_confidence: job ? "high" : "medium",
+        skills: diceJobSkills(job),
+        raw_text: rawText || description || headerText,
+        extraction_confidence: job && description ? "high" : "medium",
+        extraction_warnings: extractionWarnings,
       });
     },
   };
@@ -324,28 +243,22 @@
     id: "indeed",
     matches: () => location.hostname.includes("indeed.com"),
     async extract() {
-      const detailText = selectedDetailText(["Return to Search Result", "Job Post Details"]);
-      const description = detailText.includes("Full job description") ? clean(detailText.split("Full job description").slice(1).join("Full job description")) : detailText;
-      const title =
-        firstText(['[data-testid="jobsearch-JobInfoHeader-title"]', "h1"]) ||
-        clean((detailText.match(/Job Post Details\s+(.+?)\s+-\s+job post/i) || [])[1] || "") ||
-        clean((detailText.match(/^(.+?)\s+-\s+job post/i) || [])[1] || "");
-      const company = firstText(['[data-testid="inlineHeader-companyName"]', '[data-testid="company-name"]']) || clean((detailText.match(/job post\s+(.+?)\s+(?:Remote|Hybrid|[A-Z][a-z]+,\s+[A-Z]{2})/i) || [])[1] || "");
-      const companyIndex = company ? detailText.indexOf(company) : -1;
-      const afterCompany = companyIndex === -1 ? detailText : detailText.slice(companyIndex + company.length, companyIndex + company.length + 180);
-      const sections = sectionSummary(description);
+      const description = firstText(['#jobDescriptionText', '[data-testid="jobsearch-JobComponent-description"]']);
+      const title = firstText(['[data-testid="jobsearch-JobInfoHeader-title"]', "h1"]);
+      const company = firstText(['[data-testid="inlineHeader-companyName"]', '[data-testid="company-name"]']);
+      const location = firstText(['[data-testid="jobsearch-JobInfoHeader-companyLocation"]']);
+      const rawText = clean([title, company, location, description].filter(Boolean).join(" "));
       return opportunity("indeed", {
-        title: title.replace(/\s+-\s+job post$/i, ""),
+        title,
         company,
-        location: firstText(['[data-testid="jobsearch-JobInfoHeader-companyLocation"]']) || clean((afterCompany.match(/(?:Remote|Hybrid work in [^$]+?|[A-Z][a-zA-Z .-]+,\s+[A-Z]{2}\s*\d*)/) || [])[0] || ""),
-        compensation: extractCompensation(detailText),
-        employment_type: inferEmploymentType(detailText),
+        location,
+        compensation: firstText(['[data-testid="jobsearch-JobMetadataHeader-item"]']),
+        employment_type: "",
         description,
-        skills: extractSkills(detailText),
-        ...sections,
-        raw_text: detailText,
-        extraction_confidence: description.length > 500 ? "medium" : "low",
-        extraction_warnings: description.length > 500 ? [] : ["Indeed detail panel text was short; review the snapshot before drafting."],
+        skills: extractExplicitSkills(),
+        raw_text: rawText,
+        extraction_confidence: description ? "medium" : "low",
+        extraction_warnings: description ? [] : ["Indeed job description element was not found; review the snapshot before drafting."],
       });
     },
   };
@@ -354,28 +267,25 @@
     id: "ziprecruiter",
     matches: () => location.hostname.includes("ziprecruiter.com"),
     async extract() {
-      const text = visibleText();
-      const detailText = selectedDetailText(["Showing results 1-20", "Showing results"]);
       const firstArticle = document.querySelector("article");
       const cardText = clean(firstArticle?.textContent || "");
-      const title = firstText(["article h2", "article h3"]) || clean((detailText.match(/^(.+?)\s+[A-Z][A-Za-z0-9 .,&-]+\s+(?:[A-Z][a-z]+|Remote)/) || [])[1] || "");
+      const title = firstText(["article h2", "article h3"]);
       const company = firstText(['[data-testid="job-card-company"]']);
       const locationText = firstText(['[data-testid="job-card-location"]']);
-      const description = detailText.includes("Job description") ? clean(detailText.split("Job description").slice(1).join("Job description")) : detailText;
-      const sections = sectionSummary(description);
+      const description = firstText(['[data-testid="jobDescriptionText"]', '[data-testid="job-description"]', '[class*="job_description"]']);
+      const rawText = clean([cardText, description].filter(Boolean).join(" "));
       return opportunity("ziprecruiter", {
         title,
         company,
-        location: clean([locationText, /Remote/i.test(cardText) ? "Remote" : ""].filter(Boolean).join(" | ")),
-        compensation: extractCompensation(`${cardText} ${detailText}`),
-        employment_type: inferEmploymentType(detailText),
-        remote_status: inferRemoteStatus(`${cardText} ${detailText}`),
+        location: locationText,
+        compensation: firstText(['[data-testid="job-card-salary"]', '[data-testid="salary"]']),
+        employment_type: "",
+        remote_status: "",
         description,
-        skills: extractSkills(detailText),
-        ...sections,
-        raw_text: clean(`${cardText} ${detailText || text}`),
-        extraction_confidence: description.length > 500 ? "medium" : "low",
-        extraction_warnings: description.length > 500 ? [] : ["ZipRecruiter selected-job detail text was short; review the snapshot before drafting."],
+        skills: extractExplicitSkills(),
+        raw_text: rawText,
+        extraction_confidence: description ? "medium" : "low",
+        extraction_warnings: description ? [] : ["ZipRecruiter job description element was not found; review the snapshot before drafting."],
       });
     },
   };
@@ -387,18 +297,19 @@
       const description = firstText(['[data-testid="job-details-description"]']);
       const requirementsText = firstText(['[data-testid="job-details-requirements"]']);
       const title = firstText(['a[href*="/us/en/job/"].rhcl-typography--display5', 'a[href*="/us/en/job/"]']);
-      const text = visibleText();
+      const location = firstText(['[data-testid="job-details-location"]']);
+      const compensation = firstText(['[data-testid="job-details-salary"]', '[data-testid="job-details-pay"]']);
       return opportunity("roberthalf", {
         title,
         company: "Robert Half",
-        location: clean((text.match(/[A-Z][A-Z ]+,\s+[A-Z]{2}/) || [])[0] || ""),
-        compensation: extractCompensation(text),
-        employment_type: inferEmploymentType(text),
-        remote_status: inferRemoteStatus(text),
+        location,
+        compensation,
+        employment_type: "",
+        remote_status: "",
         description,
-        requirements: unique(requirementsText.split("•")).filter((item) => item.length > 20).slice(0, 12),
-        skills: extractSkills(`${description} ${requirementsText}`),
-        raw_text: clean(`${title} ${description} ${requirementsText} ${text.slice(0, 3000)}`),
+        requirements: requirementsText ? [requirementsText] : [],
+        skills: extractExplicitSkills(),
+        raw_text: clean([title, location, compensation, description, requirementsText].filter(Boolean).join(" ")),
         extraction_confidence: description ? "high" : "low",
         extraction_warnings: description ? [] : ["Robert Half job detail region was not found; review the snapshot before drafting."],
       });
@@ -406,39 +317,11 @@
   };
 
   function proposalJobDetailsRoot() {
-    const heading = findHeading("Job details");
-    if (!heading) return null;
-
-    let node = heading.parentElement;
-    for (let depth = 0; depth < 8 && node; depth += 1) {
-      const text = clean(node.textContent || "");
-      if (text.includes("Skills and expertise") || text.includes("View job posting")) {
-        return node;
-      }
-      node = node.parentElement;
-    }
-
-    const container = heading.closest("div");
-    const next = container?.parentElement?.querySelector("section");
-    return next || container;
+    return document.querySelector('[data-test="job-details"], [data-test="job-description"], [data-test="Description"]');
   }
 
   function firstUpworkJobCard() {
-    const links = Array.from(document.querySelectorAll('a[href*="/jobs/"], a[href*="/freelance-jobs/"]')).filter((node) => clean(node.textContent || "").length > 20);
-    const link = links[0];
-    if (!link) return { link: null, card: null };
-
-    let card = link;
-    let best = link.parentElement;
-    for (let depth = 0; depth < 8 && card?.parentElement; depth += 1) {
-      card = card.parentElement;
-      const text = clean(card.textContent || "");
-      if (text.includes("Proposals:")) best = card;
-      if (text.includes("Hourly:") || text.includes("Fixed-price") || text.length > 1000) {
-        return { link, card };
-      }
-    }
-    return { link, card: best };
+    return document.querySelector('[data-test="job-tile"], article');
   }
 
   function extractProposalSkills(root) {
@@ -461,11 +344,11 @@
     const adapter = adapters.find((candidate) => candidate.matches());
     if (!adapter) {
       return opportunity("generic", {
-        title: firstText(["h1", "h2"]) || document.title,
-        description: visibleText().slice(0, 8000),
-        raw_text: visibleText(),
+        title: firstText(["h1", "h2"]),
+        description: "",
+        raw_text: "",
         extraction_confidence: "low",
-        extraction_warnings: ["No site adapter matched this page; extracted generic visible text."],
+        extraction_warnings: ["No site adapter matched this page; no generic page text was extracted."],
       });
     }
     const snapshot = await adapter.extract();
@@ -476,17 +359,13 @@
     };
   }
 
-  globalThis.__upworkProposalAssistantExtract = async () => {
-    const snapshot = await extractOpportunity();
-    return legacyProject(snapshot);
-  };
   globalThis.__applicationDraftAssistantExtract = extractOpportunity;
 
   if (globalThis.chrome?.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-      if (message?.type !== "UPWORK_PROPOSAL_EXTRACT" && message?.type !== "APPLICATION_DRAFT_EXTRACT") return false;
+      if (message?.type !== "APPLICATION_DRAFT_EXTRACT") return false;
       extractOpportunity()
-        .then((snapshot) => sendResponse({ ok: true, opportunity: snapshot, project: legacyProject(snapshot) }))
+        .then((snapshot) => sendResponse({ ok: true, opportunity: snapshot }))
         .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
       return true;
     });
