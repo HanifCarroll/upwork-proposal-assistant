@@ -275,7 +275,7 @@
     return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
-  function setLedgerBadge(application) {
+  function setLedgerBadge(application, { label = "Already applied", includeAppliedAt = true } = {}) {
     const existing = document.getElementById(LEDGER_BADGE_ID);
     if (!application) {
       existing?.remove();
@@ -296,10 +296,10 @@
     badge.style.boxShadow = "0 10px 28px rgba(23, 32, 28, 0.14)";
     badge.style.color = "#15533f";
     badge.style.font = "700 13px/1.35 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    const appliedAt = formatAppliedAt(application.applied_at);
+    const appliedAt = includeAppliedAt ? formatAppliedAt(application.applied_at) : "";
     const role = application.title || "this role";
     const company = application.company ? ` at ${application.company}` : "";
-    badge.textContent = `Already applied${appliedAt ? ` ${appliedAt}` : ""}: ${role}${company}`;
+    badge.textContent = `${label}${appliedAt ? ` ${appliedAt}` : ""}: ${role}${company}`;
     if (!existing) {
       document.documentElement.appendChild(badge);
     }
@@ -319,6 +319,12 @@
 
   let badgeLookupTimer = 0;
   let lastBadgeLookupKey = "";
+  let recordedBadgeHref = "";
+
+  function setRecordedLedgerBadge(application, label) {
+    recordedBadgeHref = location.href;
+    setLedgerBadge(application, { label, includeAppliedAt: false });
+  }
 
   async function updateLedgerBadge({ force = false } = {}) {
     const rule = currentRule();
@@ -326,6 +332,7 @@
       setLedgerBadge(null);
       return;
     }
+    if (recordedBadgeHref === location.href) return;
     const opportunity = await currentOpportunity(rule);
     const sourceUrl = opportunity?.source_url || location.href;
     if (!sourceUrl) {
@@ -362,6 +369,7 @@
     if (sessionStorage.getItem(CONFIRMED_KEY) === key) return;
     sessionStorage.setItem(CONFIRMED_KEY, key);
     const opportunity = await currentOpportunity(rule);
+    recordedBadgeHref = location.href;
     chrome.runtime.sendMessage(
       {
         type: "APPLICATION_CONFIRMED",
@@ -369,8 +377,22 @@
         opportunity,
         warnings: [],
       },
-      () => {
+      (response) => {
         lastBadgeLookupKey = "";
+        if (chrome.runtime.lastError || !response?.ok) {
+          recordedBadgeHref = "";
+          scheduleLedgerBadgeRefresh(500, { force: true });
+          return;
+        }
+        if (response.application) {
+          setRecordedLedgerBadge(response.application, "Application recorded");
+          return;
+        }
+        if (response.queued && opportunity) {
+          setRecordedLedgerBadge(opportunity, "Application log queued");
+          return;
+        }
+        recordedBadgeHref = "";
         scheduleLedgerBadgeRefresh(500, { force: true });
       }
     );

@@ -5,7 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from job_application_draft_assistant.applications.dashboard import (
+    count_sent_today,
     filter_application_records,
+    paginate_application_records,
     render_application_dashboard,
     sort_application_records,
 )
@@ -28,6 +30,7 @@ from job_application_draft_assistant.models import (
     PdfExportResponse,
     ReindexResponse,
     RevealPdfResponse,
+    StoredDraft,
 )
 from job_application_draft_assistant.drafts.pdf_export import (
     PdfExportError,
@@ -87,7 +90,9 @@ def create_app() -> FastAPI:
     def dashboard(
         q: str = "",
         source: str = "",
+        sent: str = "",
         limit: int = Query(500, ge=1, le=1000),
+        page: int = Query(1, ge=1),
         sort: str = "applied",
         direction: str = "desc",
     ) -> HTMLResponse:
@@ -98,15 +103,21 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except DraftStoreValidationError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-        filtered_records = filter_application_records(all_records, query=q, source=source)
-        visible_records = sort_application_records(filtered_records, sort=sort, direction=direction)[:limit]
+        filtered_records = filter_application_records(all_records, query=q, source=source, sent=sent)
+        sorted_records = sort_application_records(filtered_records, sort=sort, direction=direction)
+        paginated_records = paginate_application_records(sorted_records, page=page, page_size=limit)
         return HTMLResponse(
             render_application_dashboard(
-                records=visible_records,
+                records=paginated_records.records,
                 all_records=all_records,
                 query=q,
                 source=source,
+                sent=sent,
                 limit=limit,
+                page=paginated_records.page,
+                total_pages=paginated_records.total_pages,
+                filtered_total=paginated_records.total_records,
+                today_total=count_sent_today(all_records),
                 sort=sort,
                 direction=direction,
                 draft_ids_by_source_url=draft_ids_by_source_url,
@@ -255,12 +266,25 @@ def _draft_ids_by_source_url(store: DraftStore) -> dict[str, str]:
 
 
 def _archive_cover_letter_for_application(record: ApplicationRecord, store: DraftStore, paths: AppPaths) -> None:
-    if not record.draft_id:
-        return
-    stored = store.get_stored_draft(record.draft_id)
+    stored = _stored_draft_for_application(record, store)
     if stored is None:
         return
     archive_cover_letter_pdf(stored, paths.pdf_output_dir, paths.pdf_archive_dir)
+
+
+def _stored_draft_for_application(record: ApplicationRecord, store: DraftStore) -> StoredDraft | None:
+    if record.draft_id:
+        return store.get_stored_draft(record.draft_id)
+
+    normalized_source_url = normalize_source_url(record.source_url)
+    if not normalized_source_url:
+        return None
+
+    for draft in store.list_stored_drafts(skip_invalid=True):
+        draft_source_url = normalize_source_url(draft.request.opportunity_snapshot().source_url)
+        if draft_source_url == normalized_source_url:
+            return draft
+    return None
 
 
 def _latest_draft_response_by_source_url(store: DraftStore, source_url: str) -> DraftResponse | None:

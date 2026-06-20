@@ -19,6 +19,14 @@
     return location.hostname.includes("dice.com") && Boolean(jobApplicationId());
   }
 
+  function isDiceWizardSuccessStep() {
+    return location.hostname.includes("dice.com") && /^\/job-applications\/[^/]+\/wizard\/success\/?$/.test(location.pathname);
+  }
+
+  function removePanel() {
+    document.getElementById(PANEL_ID)?.remove();
+  }
+
   function isResumeCoverLetterStep() {
     if (!isDiceWizard()) return false;
     return Boolean(
@@ -368,7 +376,10 @@
   }
 
   function maybeStart() {
-    if (!isDiceWizard()) return;
+    if (!isDiceWizard() || isDiceWizardSuccessStep()) {
+      removePanel();
+      return;
+    }
     ensurePanel();
     if (!isResumeCoverLetterStep()) {
       setPanelStatus("Waiting for the Resume & Cover Letter step.");
@@ -390,7 +401,7 @@
   function pollForResumeStep() {
     stepPollCount += 1;
     maybeStart();
-    if (!isDiceWizard() || autoStartedForJobId === jobApplicationId() || stepPollCount >= 120) {
+    if (!isDiceWizard() || isDiceWizardSuccessStep() || autoStartedForJobId === jobApplicationId() || stepPollCount >= 120) {
       window.clearInterval(stepPollTimer);
     }
   }
@@ -399,9 +410,11 @@
     if (!force && location.href === lastKnownHref) return;
     lastKnownHref = location.href;
     window.clearInterval(stepPollTimer);
-    if (isDiceWizard()) {
-      startStepPolling();
+    if (!isDiceWizard() || isDiceWizardSuccessStep()) {
+      removePanel();
+      return;
     }
+    startStepPolling();
   }
 
   function installRouteWatcher() {

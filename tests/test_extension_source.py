@@ -181,6 +181,8 @@ def test_extension_wires_application_logging() -> None:
     assert "job-application-ledger-badge" in application_logger_js
     assert "LOOKUP_APPLICATION" in application_logger_js
     assert "Already applied" in application_logger_js
+    assert "Application recorded" in application_logger_js
+    assert "recordedBadgeHref === location.href" in application_logger_js
     assert "remote_status" not in application_logger_js
     assert "submitSelectors" in application_logger_js
     assert "confirmationSelectors" in application_logger_js
@@ -205,6 +207,8 @@ def test_extension_wires_application_logging() -> None:
     assert "Generate PDF" in dice_wizard_assistant_js
     assert "pollForResumeStep" in dice_wizard_assistant_js
     assert "installRouteWatcher" in dice_wizard_assistant_js
+    assert "isDiceWizardSuccessStep" in dice_wizard_assistant_js
+    assert "removePanel" in dice_wizard_assistant_js
     assert "patchedHistoryMethod" in dice_wizard_assistant_js
     assert 'window.setInterval(() => handleRouteChange(), 1000)' in dice_wizard_assistant_js
     assert "autoStartedForJobId" in dice_wizard_assistant_js

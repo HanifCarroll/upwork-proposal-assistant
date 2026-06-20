@@ -243,7 +243,9 @@ View the local dashboard while the backend is running:
 http://127.0.0.1:8787/dashboard
 ```
 
-The extension checks the current job source URL against `/applications/lookup`. If the normalized URL is already in SQLite, the popup shows an already-applied status and supported job pages show a small already-applied badge.
+The dashboard supports search, source/date filters including `Sent today`, sortable columns, paginated rows, and top-level ledger totals.
+
+The extension checks the current job source URL against `/applications/lookup`. If the normalized URL is already in SQLite, the popup shows an already-applied status and supported job pages show a small already-applied badge. Immediately after a supported platform confirms a submitted application, the page badge confirms `Application recorded` for that submission instead of treating it as a prior application.
 
 ## PDF Cover Letters
 
@@ -255,7 +257,7 @@ After an application is logged with an attached cover letter draft, the backend 
 
 The popup enables `Generate PDF` after a cover letter draft succeeds. PDF generation is started through the extension background service worker and persisted in `chrome.storage.local`, so closing the popup does not own or clear the in-progress export state. After generation, `Finder` asks the local backend to reveal the generated PDF file. The backend only reveals files it generated under the configured PDF output directory.
 
-On Dice application wizard pages, the extension can automatically generate the cover letter PDF and expose `Open PDF` plus `Show in Finder` actions. Dice still owns its upload control; attach the generated PDF through Dice's file picker.
+On Dice application wizard pages, the extension can automatically generate the cover letter PDF and expose `Open PDF` plus `Show in Finder` actions. Dice still owns its upload control; attach the generated PDF through Dice's file picker. The assistant panel is dismissed on the Dice success step after submission.
 
 ## Privacy And Data Retention
 
