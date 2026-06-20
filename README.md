@@ -99,7 +99,7 @@ Supported environment variables:
 | `JOB_APPLICATION_DRAFT_RUNTIME_DIR` | `.runtime` | Runtime directory for local backend artifacts. |
 | `JOB_APPLICATION_DRAFT_PDF_OUTPUT_DIR` | `.runtime/cover-letters` | Directory where generated cover letter PDFs are saved. |
 | `JOB_APPLICATION_DRAFT_PDF_ARCHIVE_DIR` | `.runtime/cover-letters/archive` | Directory where submitted cover letter PDFs are moved after the application is logged. |
-| `JOB_APPLICATION_DRAFT_RESUME_PDF_PATH` | `~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Hanif-Carroll-Resume.pdf` | Resume PDF used for cover letter letterhead data. Phone-like contact items are omitted from exports. |
+| `JOB_APPLICATION_DRAFT_RESUME_PDF_PATH` | `~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Hanif-Carroll-Resume.pdf` | Resume PDF indexed into draft context and used for cover letter letterhead data. Phone-like contact items are omitted from exports. |
 | `JOB_APPLICATION_DRAFT_DB_PATH` | `.runtime/drafts.db` | SQLite database path. |
 | `JOB_APPLICATION_DRAFT_CODEX_RUNS_DIR` | `.runtime/codex-runs` | Per-run Codex workspaces. |
 | `JOB_APPLICATION_DRAFT_CODEX_BINARY` | `codex` | Codex CLI executable. |
@@ -129,6 +129,8 @@ my-context/
 ```
 
 `profile.md` is freeform Markdown about your positioning and working style.
+
+Resume text is extracted from `JOB_APPLICATION_DRAFT_RESUME_PDF_PATH` during `jada reindex` and cached in `data/context/resume.json`. Missing or unreadable resume PDFs produce an explicit context warning instead of made-up resume details.
 
 `offers.json` is an array of proposal angles:
 
@@ -247,7 +249,7 @@ The extension checks the current job source URL against `/applications/lookup`. 
 
 PDF export is available for completed `cover_letter` drafts. The backend renders the saved `draft_text` without rewriting it, adds a restrained resume-derived letterhead, and saves the file under `JOB_APPLICATION_DRAFT_PDF_OUTPUT_DIR`.
 
-The default resume source is the iCloud Downloads resume path shown in Configuration. The exporter reads only the resume header/contact lines needed for letterhead and skips phone-like contact items.
+The default resume source is the iCloud Downloads resume path shown in Configuration. Reindexing extracts the resume text into draft context; PDF export reads only the resume header/contact lines needed for letterhead and skips phone-like contact items.
 
 After an application is logged with an attached cover letter draft, the backend moves the already-generated PDF from `JOB_APPLICATION_DRAFT_PDF_OUTPUT_DIR` into `JOB_APPLICATION_DRAFT_PDF_ARCHIVE_DIR`. If no PDF was generated for that draft, application logging still succeeds and no archive file is created.
 

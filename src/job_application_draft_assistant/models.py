@@ -136,8 +136,14 @@ class ContextProject(BaseModel):
         return " ".join([self.title, self.track, self.service, self.role, " ".join(self.technologies), " ".join(self.best_for), self.claim])
 
 
+class ResumeContext(BaseModel):
+    text: str = ""
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ContextBundle(BaseModel):
     profile: str
+    resume: ResumeContext = Field(default_factory=ResumeContext)
     offers: list[OfferAngle]
     projects: list[ContextProject]
 

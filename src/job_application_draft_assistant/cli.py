@@ -27,7 +27,7 @@ def reindex(
     ),
 ) -> None:
     paths = AppPaths(portfolio_root=portfolio_root)
-    bundle = build_context(paths.portfolio_root, paths.context_dir)
+    bundle = build_context(paths.portfolio_root, paths.context_dir, paths.resume_pdf_path)
     typer.echo(f"Indexed {len(bundle.projects)} projects into {paths.context_dir}")
 
 

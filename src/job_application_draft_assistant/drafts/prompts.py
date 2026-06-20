@@ -9,6 +9,7 @@ def build_draft_prompt(request: DraftRequest, context: ContextBundle) -> str:
     opportunity = request.opportunity_snapshot()
     packet = {
         "profile": context.profile,
+        "resume": context.resume.model_dump(),
         "opportunity": opportunity.model_dump(),
         "draft_type": request.draft_type,
         "user_notes": request.user_notes,
@@ -20,6 +21,7 @@ def build_draft_prompt(request: DraftRequest, context: ContextBundle) -> str:
 
 Information rules:
 - Use only the information below. Do not invent experience, metrics, tools, client names, timelines, or outcomes.
+- Treat `resume.text` as the only resume content. If `resume.warnings` says the resume is missing or unreadable, do not fill resume details from memory or assumptions.
 
 Return JSON matching the provided schema.
 
@@ -65,7 +67,7 @@ Audit fields only:
 - Every meaningful drafting or strategy decision must appear in `decisions[]` with where it came from in `caused_by`.
 - Add warnings for weak experience matches, noisy extraction, missing job details, missing exact tool or industry matches, or a role that should not use a project example.
 - When exact tool or industry experience is weak but the profile or projects show relevant adaptation across tools, domains, or product constraints, include one honest adaptability claim with where it came from.
-- Use these labels in `caused_by`: `profile`, opportunity fields like `opportunity.description`, offer `source_ref` values, and project labels from each project's `source_refs`, `project.<slug>.claim`, and `project.<slug>.technologies`.
+- Use these labels in `caused_by`: `profile`, `resume.text`, opportunity fields like `opportunity.description`, offer `source_ref` values, and project labels from each project's `source_refs`, `project.<slug>.claim`, and `project.<slug>.technologies`.
 - Keep audit and source-tracking language in these JSON audit fields, not in the applicant-facing draft.
 
 Context packet:

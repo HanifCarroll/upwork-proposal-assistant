@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from job_application_draft_assistant.models import ContextBundle, DraftRequest, OpportunitySnapshot
+from job_application_draft_assistant.models import ContextBundle, DraftRequest, OpportunitySnapshot, ResumeContext
 from job_application_draft_assistant.drafts.prompts import build_draft_prompt
 
 
@@ -55,6 +55,14 @@ def test_prompt_contract_includes_required_output_fields() -> None:
     assert "question_answers[]" not in prompt
 
 
+def test_prompt_includes_resume_context_and_source_label() -> None:
+    prompt = _prompt()
+
+    assert '"resume"' in prompt
+    assert "Senior product engineer with Python systems work." in prompt
+    assert "`resume.text`" in prompt
+
+
 def test_prompt_contract_separates_applicant_copy_from_audit_fields() -> None:
     sections = _sections(_prompt())
     applicant_copy_sections = "\n".join(sections[name] for name in APPLICANT_FACING_SECTIONS)
@@ -103,7 +111,12 @@ def test_draft_schema_rejects_old_output_fields() -> None:
 def _prompt() -> str:
     return build_draft_prompt(
         DraftRequest(opportunity=OpportunitySnapshot(source="dice", title="Software Engineer")),
-        ContextBundle(profile="Product-minded full-stack engineer.", offers=[], projects=[]),
+        ContextBundle(
+            profile="Product-minded full-stack engineer.",
+            resume=ResumeContext(text="Senior product engineer with Python systems work."),
+            offers=[],
+            projects=[],
+        ),
     )
 
 

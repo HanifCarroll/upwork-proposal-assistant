@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
     application_store = ApplicationStore(paths.db_path)
     application_store.init()
     job_store.fail_active("Server restarted before this draft job completed.")
-    context = ensure_context(paths.portfolio_root, paths.context_dir)
+    context = ensure_context(paths.portfolio_root, paths.context_dir, paths.resume_pdf_path)
     codex = CodexProvider(paths)
     runner = DraftJobRunner(
         context=context,
@@ -115,8 +115,9 @@ def create_app() -> FastAPI:
 
     @app.post("/context/reindex")
     def reindex() -> ReindexResponse:
-        refreshed = build_context(paths.portfolio_root, paths.context_dir)
+        refreshed = build_context(paths.portfolio_root, paths.context_dir, paths.resume_pdf_path)
         context.profile = refreshed.profile
+        context.resume = refreshed.resume
         context.offers = refreshed.offers
         context.projects = refreshed.projects
         return ReindexResponse(project_count=len(context.projects), context_dir=str(paths.context_dir))

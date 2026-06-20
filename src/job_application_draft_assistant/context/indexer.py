@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from job_application_draft_assistant.models import ContextBundle, ContextProject, OfferAngle
+from job_application_draft_assistant.context.resume import extract_resume_context
+from job_application_draft_assistant.models import ContextBundle, ContextProject, OfferAngle, ResumeContext
 
 
 DEFAULT_PROFILE_TEXT = """# Your Name
@@ -68,13 +69,19 @@ TRACK_BEST_FOR: dict[str, list[str]] = {
 PROJECT_BEST_FOR: dict[str, list[str]] = {}
 
 
-def build_context(portfolio_root: Path, context_dir: Path) -> ContextBundle:
+def build_context(portfolio_root: Path, context_dir: Path, resume_pdf_path: Path) -> ContextBundle:
     context_dir.mkdir(parents=True, exist_ok=True)
     project_paths = _project_paths(portfolio_root)
     projects = [_project_from_json(path) for path in project_paths]
-    bundle = ContextBundle(profile=_profile_text(portfolio_root), offers=_offers(portfolio_root), projects=projects)
+    bundle = ContextBundle(
+        profile=_profile_text(portfolio_root),
+        resume=extract_resume_context(resume_pdf_path),
+        offers=_offers(portfolio_root),
+        projects=projects,
+    )
 
     (context_dir / "me.md").write_text(bundle.profile, encoding="utf-8")
+    (context_dir / "resume.json").write_text(json.dumps(bundle.resume.model_dump(), indent=2), encoding="utf-8")
     (context_dir / "offers.json").write_text(
         json.dumps([offer.model_dump() for offer in bundle.offers], indent=2),
         encoding="utf-8",
@@ -88,26 +95,28 @@ def build_context(portfolio_root: Path, context_dir: Path) -> ContextBundle:
 
 def load_context(context_dir: Path) -> ContextBundle:
     profile_path = context_dir / "me.md"
+    resume_path = context_dir / "resume.json"
     offers_path = context_dir / "offers.json"
     projects_path = context_dir / "projects.jsonl"
-    if not profile_path.exists() or not offers_path.exists() or not projects_path.exists():
+    if not profile_path.exists() or not resume_path.exists() or not offers_path.exists() or not projects_path.exists():
         raise FileNotFoundError(f"Context files missing in {context_dir}. Run `jada reindex` first.")
 
     profile = profile_path.read_text(encoding="utf-8")
+    resume = ResumeContext.model_validate(json.loads(resume_path.read_text(encoding="utf-8")))
     offers = [OfferAngle.model_validate(item) for item in json.loads(offers_path.read_text(encoding="utf-8"))]
     projects = [
         ContextProject.model_validate(json.loads(line))
         for line in projects_path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    return ContextBundle(profile=profile, offers=offers, projects=projects)
+    return ContextBundle(profile=profile, resume=resume, offers=offers, projects=projects)
 
 
-def ensure_context(portfolio_root: Path, context_dir: Path) -> ContextBundle:
+def ensure_context(portfolio_root: Path, context_dir: Path, resume_pdf_path: Path) -> ContextBundle:
     try:
         return load_context(context_dir)
     except FileNotFoundError:
-        return build_context(portfolio_root, context_dir)
+        return build_context(portfolio_root, context_dir, resume_pdf_path)
 
 
 def _project_from_json(path: Path) -> ContextProject:
