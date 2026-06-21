@@ -409,6 +409,7 @@
         type: "APPLICATION_CONFIRMED",
         source: rule.source,
         opportunity,
+        close_tab: rule.source === "dice" && pathConfirms(rule),
         warnings: [],
       },
       (response) => {

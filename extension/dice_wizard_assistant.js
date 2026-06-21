@@ -6,6 +6,9 @@
 
   const PANEL_ID = "job-application-dice-cover-letter-panel";
   const AUTO_STARTED_KEY = "jobApplicationDiceCoverLetterAutoStarted";
+  const AUTO_NEXT_KEY = "jobApplicationDiceCoverLetterAutoNext";
+  const AUTO_SUBMIT_KEY = "jobApplicationDiceSubmitAutoClicked";
+  const COVER_LETTER_SELECTOR = '[data-testid="cover-letter"]';
 
   function clean(text) {
     return (text || "").replace(/\s+/g, " ").trim();
@@ -30,7 +33,7 @@
   function isResumeCoverLetterStep() {
     if (!isDiceWizard()) return false;
     return Boolean(
-      document.querySelector('[data-testid="cover-letter"]') ||
+      document.querySelector(COVER_LETTER_SELECTOR) ||
         document.querySelector('input[type="file"][accept*="pdf"]') ||
         document.querySelector('input[type="file"]')
     );
@@ -145,6 +148,8 @@
   let stepPollTimer = 0;
   let stepPollCount = 0;
   let lastKnownHref = location.href;
+  let wizardAutomationTimer = 0;
+  let wizardObserver = null;
 
   function startCoverLetterFlow(options = {}) {
     if (activeRun) return;
@@ -375,12 +380,91 @@
     return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
+  function jobScopedKey(prefix) {
+    return `${prefix}:${jobApplicationId() || location.pathname}`;
+  }
+
+  function usableButton(button) {
+    return (
+      button instanceof HTMLButtonElement &&
+      !button.disabled &&
+      button.getAttribute("aria-disabled") !== "true" &&
+      button.offsetParent !== null
+    );
+  }
+
+  function wizardButton(label) {
+    return Array.from(document.querySelectorAll("button")).find((button) => {
+      return usableButton(button) && clean(button.textContent || button.getAttribute("aria-label") || "") === label;
+    }) || null;
+  }
+
+  function coverLetterAttachmentPresent() {
+    const coverLetter = document.querySelector(COVER_LETTER_SELECTOR);
+    if (!coverLetter) return false;
+    return /\.pdf(?:\s|$)/i.test(clean(coverLetter.textContent || ""));
+  }
+
+  function clickNextAfterCoverLetterIfReady() {
+    if (!isResumeCoverLetterStep() || !coverLetterAttachmentPresent()) return false;
+    const next = wizardButton("Next");
+    if (!next) return false;
+
+    const key = jobScopedKey(AUTO_NEXT_KEY);
+    if (sessionStorage.getItem(key)) return false;
+    sessionStorage.setItem(key, new Date().toISOString());
+
+    setPanelStatus("Cover letter attached. Continuing to review...", { busy: true, label: "Continuing..." });
+    window.setTimeout(() => next.click(), 0);
+    return true;
+  }
+
+  function clickSubmitIfReady() {
+    if (!isDiceWizard() || isDiceWizardSuccessStep()) return false;
+    const submit = wizardButton("Submit");
+    if (!submit) return false;
+
+    const key = jobScopedKey(AUTO_SUBMIT_KEY);
+    if (sessionStorage.getItem(key)) return false;
+    sessionStorage.setItem(key, new Date().toISOString());
+
+    setPanelStatus("Submitting Dice application...", { busy: true, label: "Submitting..." });
+    window.setTimeout(() => submit.click(), 0);
+    return true;
+  }
+
+  function advanceWizardIfReady() {
+    if (!isDiceWizard() || isDiceWizardSuccessStep()) return false;
+    ensurePanel();
+    return clickSubmitIfReady() || clickNextAfterCoverLetterIfReady();
+  }
+
+  function scheduleWizardAutomation(delay = 250) {
+    window.clearTimeout(wizardAutomationTimer);
+    wizardAutomationTimer = window.setTimeout(() => {
+      advanceWizardIfReady();
+    }, delay);
+  }
+
+  function installWizardAutomationWatcher() {
+    if (wizardObserver) return;
+    wizardObserver = new MutationObserver(() => scheduleWizardAutomation());
+    wizardObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-disabled", "data-testid", "disabled"],
+    });
+    window.setInterval(() => scheduleWizardAutomation(0), 1200);
+  }
+
   function maybeStart() {
     if (!isDiceWizard() || isDiceWizardSuccessStep()) {
       removePanel();
       return;
     }
     ensurePanel();
+    if (advanceWizardIfReady()) return;
     if (!isResumeCoverLetterStep()) {
       setPanelStatus("Waiting for the Resume & Cover Letter step.");
       return;
@@ -415,6 +499,7 @@
       return;
     }
     startStepPolling();
+    scheduleWizardAutomation();
   }
 
   function installRouteWatcher() {
@@ -431,5 +516,6 @@
   }
 
   installRouteWatcher();
+  installWizardAutomationWatcher();
   window.setTimeout(() => handleRouteChange({ force: true }), 600);
 })();

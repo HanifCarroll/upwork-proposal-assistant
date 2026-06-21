@@ -4,9 +4,45 @@ const DRAFT_STATE_KEY = "jobApplicationDraftState";
 const APPLICATION_QUEUE_KEY = "jobApplicationLogQueue";
 const APPLICATION_PENDING_KEY = "jobApplicationPendingApplication";
 const APPLICATION_LAST_KEY = "jobApplicationLastLogged";
+const POPUP_PATH = "popup.html";
+const SIDE_PANEL_PATH = "sidepanel.html";
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function closeTabSoon(tabId) {
+  if (!tabId) return;
+  setTimeout(() => {
+    chrome.tabs.remove(tabId).catch(() => {});
+  }, 750);
+}
+
+function isDiceUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname === "dice.com" || url.hostname.endsWith(".dice.com");
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function configureActionForTab(tabId, url) {
+  if (!tabId) return;
+  const useSidePanel = isDiceUrl(url);
+  await chrome.action.setPopup({ tabId, popup: useSidePanel ? "" : POPUP_PATH });
+  if (chrome.sidePanel?.setOptions) {
+    await chrome.sidePanel.setOptions({
+      tabId,
+      path: SIDE_PANEL_PATH,
+      enabled: useSidePanel,
+    });
+  }
+}
+
+async function configureActiveTabs() {
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(tabs.map((tab) => configureActionForTab(tab.id, tab.url).catch(() => {})));
 }
 
 function userErrorMessage(error) {
@@ -378,7 +414,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "APPLICATION_CONFIRMED") {
     logConfirmedApplication(message)
-      .then((response) => sendResponse(response))
+      .then((response) => {
+        sendResponse(response);
+        if (response?.ok && message.close_tab && _sender.tab?.id) {
+          closeTabSoon(_sender.tab.id);
+        }
+      })
       .catch((error) => sendResponse({ ok: false, error: userErrorMessage(error) }));
     return true;
   }
@@ -393,10 +434,41 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab?.id || !isDiceUrl(tab.url)) return;
+  if (!chrome.sidePanel?.open) return;
+  try {
+    const opened = chrome.sidePanel.open({ tabId: tab.id });
+    if (opened?.catch) opened.catch(() => {});
+  } catch (_error) {
+    // Ignore side panel open failures; the normal popup remains configured off only for Dice tabs.
+  }
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => {
+    if (chrome.runtime.lastError) return;
+    configureActionForTab(tab.id, tab.url).catch(() => {});
+  });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!changeInfo.url && changeInfo.status !== "complete") return;
+  configureActionForTab(tabId, changeInfo.url || tab.url).catch(() => {});
+});
+
 flushQueuedApplicationLogs().catch(() => {});
+configureActiveTabs().catch(() => {});
 
 if (chrome.runtime.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
     flushQueuedApplicationLogs().catch(() => {});
+    configureActiveTabs().catch(() => {});
+  });
+}
+
+if (chrome.runtime.onInstalled) {
+  chrome.runtime.onInstalled.addListener(() => {
+    configureActiveTabs().catch(() => {});
   });
 }

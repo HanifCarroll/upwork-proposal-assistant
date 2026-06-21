@@ -8,6 +8,7 @@ uv --no-config run pytest
 
 node --check extension/background.js
 node --check extension/popup.js
+node --check extension/sidepanel.js
 node --check extension/content_script.js
 node --check extension/application_logger.js
 node --check extension/dice_wizard_assistant.js

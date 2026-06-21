@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def test_extension_has_no_stale_compatibility_path() -> None:
     content_script = (REPO_ROOT / "extension" / "content_script.js").read_text(encoding="utf-8")
     popup = (REPO_ROOT / "extension" / "popup.js").read_text(encoding="utf-8")
+    sidepanel = (REPO_ROOT / "extension" / "sidepanel.js").read_text(encoding="utf-8")
 
     assert "leg" + "acy" not in content_script.lower()
     assert "JOB_APPLICATION_DRAFT_EXTRACT" not in content_script
@@ -33,8 +34,10 @@ def test_extension_has_no_stale_compatibility_path() -> None:
     assert "document.title" not in content_script
     assert "raw_text" not in content_script
     assert "raw_text" not in popup
+    assert "raw_text" not in sidepanel
     assert "source_text" not in content_script
     assert "source_text" not in popup
+    assert "source_text" not in sidepanel
     assert "sourceText" not in popup
     assert "source-text" not in popup
     assert "extraction_confidence" not in content_script
@@ -132,11 +135,66 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
     assert "chrome.tabs.update(tab.id, { url: nextUrl })" in popup_js
     assert "openPostingAndClickEasyApply" in popup_js
     assert "chrome.tabs.create({ url: posting.url, active: false })" in popup_js
+    assert "Promise.all(postings.map(async (posting) =>" in popup_js
     assert "await advanceActiveDiceResultsPage()" in popup_js
     assert "Loaded next Dice results page." in popup_js
     assert "Next page loaded." in popup_js
     assert "Next page" in popup_html
     assert "Open Easy Apply" in popup_html
+
+
+def test_dice_side_panel_routes_action_and_reuses_declared_contract() -> None:
+    manifest = json.loads((REPO_ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
+    background_js = (REPO_ROOT / "extension" / "background.js").read_text(encoding="utf-8")
+    sidepanel_html = (REPO_ROOT / "extension" / "sidepanel.html").read_text(encoding="utf-8")
+    sidepanel_js = (REPO_ROOT / "extension" / "sidepanel.js").read_text(encoding="utf-8")
+    sidepanel_css = (REPO_ROOT / "extension" / "sidepanel.css").read_text(encoding="utf-8")
+    check_script = (REPO_ROOT / "scripts" / "check").read_text(encoding="utf-8")
+
+    assert manifest["side_panel"]["default_path"] == "sidepanel.html"
+    assert "sidePanel" in manifest["permissions"]
+    assert "tabs" in manifest["permissions"]
+    assert manifest["action"]["default_popup"] == "popup.html"
+
+    assert 'const POPUP_PATH = "popup.html"' in background_js
+    assert 'const SIDE_PANEL_PATH = "sidepanel.html"' in background_js
+    assert "function isDiceUrl" in background_js
+    assert "chrome.action.setPopup({ tabId, popup: useSidePanel ? \"\" : POPUP_PATH })" in background_js
+    assert "chrome.sidePanel.setOptions" in background_js
+    assert "chrome.action.onClicked.addListener" in background_js
+    assert "chrome.sidePanel.open({ tabId: tab.id })" in background_js
+    assert "chrome.tabs.onActivated.addListener" in background_js
+    assert "chrome.tabs.onUpdated.addListener" in background_js
+
+    for field_id in [
+        "refresh",
+        "dice-posting-picker",
+        "dice-posting-summary",
+        "dice-posting-next-page",
+        "dice-posting-select-all",
+        "dice-posting-list",
+        "dice-posting-open-selected",
+        "dice-posting-status",
+    ]:
+        assert f'id="{field_id}"' in sidepanel_html
+
+    assert "sidepanel.js" in sidepanel_html
+    assert "sidepanel.css" in sidepanel_html
+    assert "function isDiceResultsUrl" in sidepanel_js
+    assert "function diceResultsTab" in sidepanel_js
+    assert "APPLICATION_DRAFT_LIST_POSTINGS" in sidepanel_js
+    assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in sidepanel_js
+    assert "chrome.tabs.create({ url: posting.url, active: false })" in sidepanel_js
+    assert "chrome.tabs.update(tab.id, { url: nextUrl })" in sidepanel_js
+    assert "Promise.all(postings.map(async (posting) =>" in sidepanel_js
+    assert "await advanceDiceResultsPage()" in sidepanel_js
+    assert "Open a Dice results page to use this panel." in sidepanel_js
+    assert "align-content: start" in sidepanel_css
+    assert "grid-auto-rows: max-content" in sidepanel_css
+    assert "node --check extension/sidepanel.js" in check_script
+    assert "document.title" not in sidepanel_js
+    assert "innerText" not in sidepanel_js
+    assert "[class*=" not in sidepanel_js
 
 
 def test_ziprecruiter_extraction_uses_selected_right_pane_contract() -> None:
@@ -263,6 +321,9 @@ def test_extension_wires_application_logging() -> None:
     assert 'detected_by: "manual"' in popup_js
     assert "APPLICATION_CAPTURE_PENDING" in background_js
     assert "APPLICATION_CONFIRMED" in background_js
+    assert "closeTabSoon" in background_js
+    assert "chrome.tabs.remove(tabId)" in background_js
+    assert "message.close_tab && _sender.tab?.id" in background_js
     assert "LOOKUP_APPLICATION" in background_js
     assert "Backend offline. Start it with: uv --no-config run jada serve" in background_js
     assert "userErrorMessage" in background_js
@@ -277,6 +338,7 @@ def test_extension_wires_application_logging() -> None:
     assert "LOOKUP_APPLICATION" in application_logger_js
     assert "Already applied" in application_logger_js
     assert "Application recorded" in application_logger_js
+    assert 'close_tab: rule.source === "dice" && pathConfirms(rule)' in application_logger_js
     assert "visibleBadgeSourceUrl === sourceUrl" in application_logger_js
     assert "badge.dataset.sourceUrl = badgeSourceUrl" in application_logger_js
     assert 'setLedgerBadge(await lookupApplication(sourceUrl), { sourceUrl })' in application_logger_js
@@ -329,7 +391,18 @@ def test_extension_wires_application_logging() -> None:
     assert "patchedHistoryMethod" in dice_wizard_assistant_js
     assert 'window.setInterval(() => handleRouteChange(), 1000)' in dice_wizard_assistant_js
     assert "autoStartedForJobId" in dice_wizard_assistant_js
-    assert "MutationObserver" not in dice_wizard_assistant_js
+    assert "AUTO_NEXT_KEY" in dice_wizard_assistant_js
+    assert "AUTO_SUBMIT_KEY" in dice_wizard_assistant_js
+    assert "COVER_LETTER_SELECTOR" in dice_wizard_assistant_js
+    assert "function coverLetterAttachmentPresent" in dice_wizard_assistant_js
+    assert 'wizardButton("Next")' in dice_wizard_assistant_js
+    assert 'wizardButton("Submit")' in dice_wizard_assistant_js
+    assert 'setPanelStatus("Cover letter attached. Continuing to review..."' in dice_wizard_assistant_js
+    assert 'setPanelStatus("Submitting Dice application..."' in dice_wizard_assistant_js
+    assert "window.setTimeout(() => next.click(), 0)" in dice_wizard_assistant_js
+    assert "window.setTimeout(() => submit.click(), 0)" in dice_wizard_assistant_js
+    assert "installWizardAutomationWatcher" in dice_wizard_assistant_js
+    assert "MutationObserver" in dice_wizard_assistant_js
     assert "coverLetterFileInput" not in dice_wizard_assistant_js
     assert "DOWNLOAD_PDF" not in dice_wizard_assistant_js
     assert "input.files = transfer.files" not in dice_wizard_assistant_js

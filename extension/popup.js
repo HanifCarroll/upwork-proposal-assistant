@@ -956,22 +956,24 @@ els.dicePostingOpenSelected.addEventListener("click", async () => {
   const failures = [];
   try {
     els.dicePostingOpenSelected.disabled = true;
-    els.dicePostingStatus.textContent = "Opening tabs...";
-    for (const posting of postings) {
+    els.dicePostingStatus.textContent = `Opening ${postings.length} tab${postings.length === 1 ? "" : "s"}...`;
+    const results = await Promise.all(postings.map(async (posting) => {
       try {
-        els.dicePostingStatus.textContent = `Opening ${posting.title}...`;
         await openPostingAndClickEasyApply(posting);
+        return null;
       } catch (error) {
-        failures.push(`${posting.title}: ${error.message || "Easy Apply was not clicked."}`);
+        return `${posting.title}: ${error.message || "Easy Apply was not clicked."}`;
       }
-    }
+    }));
+    failures.push(...results.filter(Boolean));
     const clickedCount = postings.length - failures.length;
     if (clickedCount > 0) {
       els.dicePostingStatus.textContent = "Loading next page...";
       await advanceActiveDiceResultsPage();
     }
     if (failures.length) {
-      els.dicePostingStatus.textContent = `Started ${clickedCount}; ${failures.length} failed. Next page loaded.`;
+      const nextPageText = clickedCount > 0 ? " Next page loaded." : "";
+      els.dicePostingStatus.textContent = `Started ${clickedCount}; ${failures.length} failed.${nextPageText}`;
       setStatus(failures[0], "error");
     } else {
       els.dicePostingStatus.textContent = `Started ${clickedCount} Easy Apply flow${clickedCount === 1 ? "" : "s"}. Next page loaded.`;
