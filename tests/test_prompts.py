@@ -130,6 +130,11 @@ def test_upwork_prompt_targets_freelancer_proposal_contracts() -> None:
     for required in ["preview-friendly", "Do not open with generic enthusiasm", "next-step question"]:
         assert required in draft_rules
 
+    for banned_opener in ['"You need"', '"You\'re looking for"', "generic restatement of the job post"]:
+        assert banned_opener in draft_rules
+
+    assert "direct fit statement" in draft_rules
+    assert "names the project in plain language" in draft_rules
     assert "job-board cover letter" in draft_rules
     assert "signoff" in draft_rules
     assert "Best,\nHanif Carroll" not in draft_rules

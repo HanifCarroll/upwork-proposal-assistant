@@ -61,6 +61,8 @@ def build_upwork_proposal_prompt(request: DraftRequest, context: ContextBundle) 
 - Use 3 short paragraphs maximum.
 - Make the first sentence client-specific and preview-friendly: name the concrete problem, product, workflow, or outcome from the job post.
 - Do not open with generic enthusiasm, a greeting, or a summary of the applicant's background.
+- Do not start with "You need", "You're looking for", or a generic restatement of the job post.
+- Start with a direct fit statement that names the project in plain language.
 - Paragraph 1: show understanding of the client's project and the strongest honest fit.
 - Paragraph 2: give 1 highly relevant example, or 2 brief examples only if both map directly to stated needs.
 - Paragraph 3: describe the likely first step or implementation approach, then end with one useful next-step question.
