@@ -35,7 +35,8 @@
     const declared = document.querySelector(COVER_LETTER_SELECTOR);
     if (declared) return declared;
     return Array.from(document.querySelectorAll("form > div")).find((section) => {
-      return Array.from(section.querySelectorAll("span")).some((label) => clean(label.textContent) === "Cover letter");
+      const labels = Array.from(section.querySelectorAll("span")).map((label) => clean(label.textContent));
+      return labels.includes("Cover letter") && !labels.some((label) => label === "Resume" || label.startsWith("Resume "));
     }) || null;
   }
 
@@ -416,7 +417,8 @@
   function coverLetterAttachmentPresent() {
     const coverLetter = coverLetterSection();
     if (!coverLetter) return false;
-    return /\.pdf/i.test(clean(coverLetter.textContent || ""));
+    const text = clean(coverLetter.textContent || "");
+    return /\.pdf/i.test(text) && /\bNew file\b/i.test(text);
   }
 
   function clickNextAfterCoverLetterIfReady() {

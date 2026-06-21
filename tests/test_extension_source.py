@@ -398,10 +398,11 @@ def test_extension_wires_application_logging() -> None:
     assert "function sessionCount" in dice_wizard_assistant_js
     assert "function coverLetterSection" in dice_wizard_assistant_js
     assert 'document.querySelectorAll("form > div")' in dice_wizard_assistant_js
-    assert 'clean(label.textContent) === "Cover letter"' in dice_wizard_assistant_js
+    assert 'labels.includes("Cover letter")' in dice_wizard_assistant_js
+    assert 'label === "Resume" || label.startsWith("Resume ")' in dice_wizard_assistant_js
     assert "function coverLetterAttachmentPresent" in dice_wizard_assistant_js
     assert "const coverLetter = coverLetterSection();" in dice_wizard_assistant_js
-    assert 'return /\\.pdf/i.test(clean(coverLetter.textContent || ""));' in dice_wizard_assistant_js
+    assert 'return /\\.pdf/i.test(text) && /\\bNew file\\b/i.test(text);' in dice_wizard_assistant_js
     assert 'wizardButton("Next")' in dice_wizard_assistant_js
     assert 'wizardButton("Submit")' in dice_wizard_assistant_js
     assert "attempts >= AUTO_NEXT_MAX_ATTEMPTS" in dice_wizard_assistant_js
