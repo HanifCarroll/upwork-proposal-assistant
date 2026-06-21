@@ -241,6 +241,42 @@
     return selectedText(firstElement(selectors, root));
   }
 
+  function upworkSectionRoot(label) {
+    const heading = Array.from(document.querySelectorAll('h2')).find((node) => clean(node.textContent) === label);
+    return heading?.closest("section") || heading?.parentElement || null;
+  }
+
+  function upworkViewPostingLink(root = document) {
+    return Array.from(root.querySelectorAll("a")).find((link) => clean(link.textContent || "") === "View job posting") || null;
+  }
+
+  function upworkApplyVisibleDescription(root) {
+    const describedParagraph = Array.from(root.querySelectorAll("p"))
+      .map((node) => clean(node.textContent || ""))
+      .find((text) => text && text !== "Posted" && !/^Posted\s/.test(text));
+    return describedParagraph || upworkDescription(root);
+  }
+
+  async function upworkApplyVisibleOpportunity() {
+    const detailsRoot = upworkSectionRoot("Job details");
+    if (!detailsRoot) return null;
+    await expandDetailsIfNeeded(detailsRoot);
+    const skillsRoot = upworkSectionRoot("Skills and expertise");
+    const viewPosting = upworkViewPostingLink(detailsRoot);
+    const title = firstText(['[data-test="job-title"]', '[data-test="job-details-title"]', 'h3', 'h4'], detailsRoot);
+    const description = upworkApplyVisibleDescription(detailsRoot);
+    return opportunity("upwork", {
+      source_url: absoluteUrl(viewPosting?.getAttribute("href") || "") || location.href,
+      title,
+      description,
+      skills: upworkSkills(skillsRoot || document),
+      extraction_warnings: [
+        ...(title ? [] : ["Upwork apply-page visible job title was not found in the Job details section."]),
+        ...(description ? [] : ["Upwork apply-page visible job description was not found in the Job details section."]),
+      ],
+    });
+  }
+
   function upworkApplyState() {
     const jobApply = globalThis.__NUXT__?.state?.["job-apply"];
     const ciphertext = clean(jobApply?.ciphertext || "");
@@ -331,6 +367,9 @@
 
       const jobDetailsStateOpportunity = upworkJobDetailsOpportunity();
       if (jobDetailsStateOpportunity) return jobDetailsStateOpportunity;
+
+      const visibleApplyOpportunity = await upworkApplyVisibleOpportunity();
+      if (visibleApplyOpportunity) return visibleApplyOpportunity;
 
       const proposalDetails = proposalJobDetailsRoot();
       if (proposalDetails) {

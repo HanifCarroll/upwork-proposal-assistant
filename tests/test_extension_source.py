@@ -89,6 +89,13 @@ def test_upwork_apply_page_uses_nuxt_job_apply_state() -> None:
     content_script = (REPO_ROOT / "extension" / "content_script.js").read_text(encoding="utf-8")
     upwork_block = content_script.split("function upworkDescription", 1)[1].split("const diceAdapter = {", 1)[0]
 
+    assert "function upworkApplyVisibleOpportunity" in upwork_block
+    assert 'upworkSectionRoot("Job details")' in upwork_block
+    assert 'upworkSectionRoot("Skills and expertise")' in upwork_block
+    assert "upworkViewPostingLink(detailsRoot)" in upwork_block
+    assert "await expandDetailsIfNeeded(detailsRoot)" in upwork_block
+    assert "upworkApplyVisibleDescription(detailsRoot)" in upwork_block
+    assert "upworkSkills(skillsRoot || document)" in upwork_block
     assert "function upworkApplyState" in upwork_block
     assert 'globalThis.__NUXT__?.state?.["job-apply"]' in upwork_block
     assert "jobApply?.jobDetails?.opening?.job" in upwork_block
@@ -120,8 +127,12 @@ def test_upwork_apply_page_uses_nuxt_job_apply_state() -> None:
     assert "if (applyStateOpportunity) return applyStateOpportunity" in upwork_block
     assert "const jobDetailsStateOpportunity = upworkJobDetailsOpportunity()" in upwork_block
     assert "if (jobDetailsStateOpportunity) return jobDetailsStateOpportunity" in upwork_block
+    assert "const visibleApplyOpportunity = await upworkApplyVisibleOpportunity()" in upwork_block
+    assert "if (visibleApplyOpportunity) return visibleApplyOpportunity" in upwork_block
     assert "Upwork apply-page job title was not found in Nuxt job state." in upwork_block
     assert "Upwork apply-page job description was not found in Nuxt job state." in upwork_block
+    assert "Upwork apply-page visible job title was not found in the Job details section." in upwork_block
+    assert "Upwork apply-page visible job description was not found in the Job details section." in upwork_block
     assert "Upwork job-detail title was not found in Nuxt job state." in upwork_block
     assert "Upwork job-detail description was not found in Nuxt job state." in upwork_block
 
@@ -190,6 +201,7 @@ def test_dice_side_panel_routes_action_and_reuses_declared_contract() -> None:
     sidepanel_html = (REPO_ROOT / "extension" / "sidepanel.html").read_text(encoding="utf-8")
     sidepanel_js = (REPO_ROOT / "extension" / "sidepanel.js").read_text(encoding="utf-8")
     sidepanel_css = (REPO_ROOT / "extension" / "sidepanel.css").read_text(encoding="utf-8")
+    draft_sidepanel_html = (REPO_ROOT / "extension" / "draft_sidepanel.html").read_text(encoding="utf-8")
     check_script = (REPO_ROOT / "scripts" / "check").read_text(encoding="utf-8")
 
     assert manifest["side_panel"]["default_path"] == "sidepanel.html"
@@ -199,8 +211,12 @@ def test_dice_side_panel_routes_action_and_reuses_declared_contract() -> None:
 
     assert 'const POPUP_PATH = "popup.html"' in background_js
     assert 'const SIDE_PANEL_PATH = "sidepanel.html"' in background_js
+    assert 'const DRAFT_SIDE_PANEL_PATH = "draft_sidepanel.html"' in background_js
     assert "function isDiceUrl" in background_js
-    assert "chrome.action.setPopup({ tabId, popup: useSidePanel ? \"\" : POPUP_PATH })" in background_js
+    assert "function isUpworkUrl" in background_js
+    assert "function sidePanelPathForUrl" in background_js
+    assert "if (isUpworkUrl(url)) return DRAFT_SIDE_PANEL_PATH" in background_js
+    assert "chrome.action.setPopup({ tabId, popup: sidePanelPath ? \"\" : POPUP_PATH })" in background_js
     assert "chrome.sidePanel.setOptions" in background_js
     assert "chrome.action.onClicked.addListener" in background_js
     assert "chrome.sidePanel.open({ tabId: tab.id })" in background_js
@@ -221,6 +237,11 @@ def test_dice_side_panel_routes_action_and_reuses_declared_contract() -> None:
 
     assert "sidepanel.js" in sidepanel_html
     assert "sidepanel.css" in sidepanel_html
+    assert "popup.js" in draft_sidepanel_html
+    assert "sidepanel.css" in draft_sidepanel_html
+    assert 'id="draft"' in draft_sidepanel_html
+    assert 'id="title"' in draft_sidepanel_html
+    assert 'id="description"' in draft_sidepanel_html
     assert "function isDiceResultsUrl" in sidepanel_js
     assert "function diceResultsTab" in sidepanel_js
     assert "APPLICATION_DRAFT_LIST_POSTINGS" in sidepanel_js

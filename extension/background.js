@@ -6,6 +6,7 @@ const APPLICATION_PENDING_KEY = "jobApplicationPendingApplication";
 const APPLICATION_LAST_KEY = "jobApplicationLastLogged";
 const POPUP_PATH = "popup.html";
 const SIDE_PANEL_PATH = "sidepanel.html";
+const DRAFT_SIDE_PANEL_PATH = "draft_sidepanel.html";
 
 function nowIso() {
   return new Date().toISOString();
@@ -27,15 +28,30 @@ function isDiceUrl(value) {
   }
 }
 
+function isUpworkUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname === "upwork.com" || url.hostname.endsWith(".upwork.com");
+  } catch (_error) {
+    return false;
+  }
+}
+
+function sidePanelPathForUrl(url) {
+  if (isDiceUrl(url)) return SIDE_PANEL_PATH;
+  if (isUpworkUrl(url)) return DRAFT_SIDE_PANEL_PATH;
+  return "";
+}
+
 async function configureActionForTab(tabId, url) {
   if (!tabId) return;
-  const useSidePanel = isDiceUrl(url);
-  await chrome.action.setPopup({ tabId, popup: useSidePanel ? "" : POPUP_PATH });
+  const sidePanelPath = sidePanelPathForUrl(url);
+  await chrome.action.setPopup({ tabId, popup: sidePanelPath ? "" : POPUP_PATH });
   if (chrome.sidePanel?.setOptions) {
     await chrome.sidePanel.setOptions({
       tabId,
-      path: SIDE_PANEL_PATH,
-      enabled: useSidePanel,
+      path: sidePanelPath || SIDE_PANEL_PATH,
+      enabled: Boolean(sidePanelPath),
     });
   }
 }
@@ -435,13 +451,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 chrome.action.onClicked.addListener((tab) => {
-  if (!tab?.id || !isDiceUrl(tab.url)) return;
+  if (!tab?.id || !sidePanelPathForUrl(tab.url)) return;
   if (!chrome.sidePanel?.open) return;
   try {
     const opened = chrome.sidePanel.open({ tabId: tab.id });
     if (opened?.catch) opened.catch(() => {});
   } catch (_error) {
-    // Ignore side panel open failures; the normal popup remains configured off only for Dice tabs.
+    // Ignore side panel open failures; the action is already configured for the active tab.
   }
 });
 

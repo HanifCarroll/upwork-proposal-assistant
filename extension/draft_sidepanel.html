@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job Application Draft Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <main class="shell sidepanel-shell">
+      <header class="topbar">
+        <div>
+          <h1>Job application draft</h1>
+          <p id="status">Waiting for job context.</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="settings" type="button">Settings</button>
+          <button id="extract" type="button">Extract</button>
+        </div>
+      </header>
+
+      <div id="progress" class="progress" hidden>
+        <div class="progress-track" aria-hidden="true">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div class="progress-meta">
+          <span id="stage">Queued</span>
+          <span id="elapsed">0s</span>
+        </div>
+      </div>
+
+      <section id="dice-posting-picker" class="posting-picker" hidden>
+        <div class="posting-picker-header">
+          <div>
+            <h2>Dice postings</h2>
+            <p id="dice-posting-summary">0 visible</p>
+          </div>
+          <div class="posting-header-actions">
+            <button id="dice-posting-next-page" type="button">Next page</button>
+            <button id="dice-posting-select-all" type="button">Select all</button>
+          </div>
+        </div>
+        <div id="dice-posting-list" class="posting-list"></div>
+        <div class="posting-actions">
+          <button id="dice-posting-open-selected" class="primary" type="button" disabled>Open Easy Apply</button>
+          <p id="dice-posting-status" class="meta-status"></p>
+        </div>
+      </section>
+
+      <div class="grid" data-hide-for-upwork>
+        <label>
+          Source
+          <input id="source" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Employment type
+          <input id="employment-type" type="text" autocomplete="off" />
+        </label>
+      </div>
+
+      <label data-hide-for-upwork>
+        Source URL
+        <input id="source-url" type="text" autocomplete="off" />
+      </label>
+
+      <div id="applied-indicator" class="applied-indicator" hidden>
+        <div>
+          <strong>Already applied</strong>
+          <span id="applied-summary"></span>
+        </div>
+        <a id="applications-dashboard-link" href="http://127.0.0.1:8787/dashboard" target="_blank" rel="noreferrer">Dashboard</a>
+      </div>
+
+      <label>
+        Role title
+        <input id="title" type="text" autocomplete="off" />
+      </label>
+
+      <div class="grid" data-hide-for-upwork>
+        <label>
+          Company
+          <input id="company" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Location
+          <input id="location" type="text" autocomplete="off" />
+        </label>
+      </div>
+
+      <label>
+        Skills
+        <input id="skills" type="text" autocomplete="off" />
+      </label>
+
+      <label>
+        Description
+        <textarea id="description" rows="7"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#company-context">
+        Company context
+        <textarea id="company-context" rows="4"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#recruiter-context">
+        Client / recruiter context
+        <textarea id="recruiter-context" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#responsibilities">
+        Responsibilities
+        <textarea id="responsibilities" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#requirements">
+        Requirements
+        <textarea id="requirements" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#nice-to-haves">
+        Nice-to-haves
+        <textarea id="nice-to-haves" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#questions">
+        Application questions
+        <textarea id="questions" rows="3"></textarea>
+      </label>
+
+      <label class="source-field" data-show-when-filled="#warnings">
+        Extraction warnings
+        <textarea id="warnings" rows="2" readonly></textarea>
+      </label>
+
+      <label data-hide-for-upwork>
+        Draft type
+        <select id="draft-type">
+          <option value="cover_letter">Cover letter</option>
+          <option value="upwork_proposal">Upwork proposal</option>
+        </select>
+      </label>
+
+      <label>
+        Notes for this draft
+        <textarea id="notes" rows="3" placeholder="Optional angle, concern, or proof point to emphasize."></textarea>
+      </label>
+
+      <button id="draft" class="primary" type="button">Draft with Codex</button>
+      <div class="application-actions">
+        <button id="mark-applied" type="button" disabled>Mark Applied</button>
+        <p id="application-status" class="meta-status"></p>
+      </div>
+
+      <section class="result" aria-live="polite">
+        <div class="result-header">
+          <h2>Draft</h2>
+          <div class="result-actions">
+            <button id="generate-pdf" type="button" disabled>Generate PDF</button>
+            <button id="open-pdf-folder" type="button" disabled>Finder</button>
+            <button id="copy" type="button" disabled>Copy</button>
+          </div>
+        </div>
+        <textarea id="proposal" rows="8" readonly></textarea>
+        <p id="pdf-status" class="meta-status"></p>
+      </section>
+
+      <details>
+        <summary>Audit trail</summary>
+        <pre id="audit"></pre>
+      </details>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
