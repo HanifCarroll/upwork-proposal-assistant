@@ -92,20 +92,35 @@ def test_upwork_apply_page_uses_nuxt_job_apply_state() -> None:
     assert "function upworkApplyState" in upwork_block
     assert 'globalThis.__NUXT__?.state?.["job-apply"]' in upwork_block
     assert "jobApply?.jobDetails?.opening?.job" in upwork_block
+    assert "function upworkJobDetailsState" in upwork_block
+    assert "globalThis.__NUXT__?.vuex?.jobDetails" in upwork_block
+    assert "jobDetails?.job" in upwork_block
+    assert "function upworkStructuredSourceUrl" in upwork_block
     assert "function upworkApplySourceUrl" in upwork_block
     assert 'a[data-test="open-original-posting"]' in upwork_block
     assert "job?.info?.ciphertext" in upwork_block
     assert 'return absoluteUrl(`/jobs/${ciphertext}`)' in upwork_block
-    assert "function upworkApplySkills" in upwork_block
-    assert "job?.sandsData?.ontologySkills" in upwork_block
-    assert "skill?.prefLabel" in upwork_block
+    assert 'return absoluteUrl(`/jobs/${detailCiphertext}`)' in upwork_block
+    assert "function upworkSandsSkills" in upwork_block
+    assert "upworkSandsSkills(job?.sandsData)" in upwork_block
+    assert "jobDetails?.sands" in upwork_block
+    assert "skill?.children" in upwork_block
+    assert "children.length ? children" in upwork_block
+    assert "skill?.prefLabel || skill?.name" in upwork_block
     assert "function upworkApplyLocation" in upwork_block
     assert "qualifications?.countries" in upwork_block
     assert "function upworkApplyOpportunity" in upwork_block
+    assert "function upworkJobDetailsOpportunity" in upwork_block
+    assert "job?.title || jobDetails?.seo?.title" in upwork_block
+    assert "job?.description || jobDetails?.seo?.description" in upwork_block
     assert "const applyStateOpportunity = upworkApplyOpportunity()" in upwork_block
     assert "if (applyStateOpportunity) return applyStateOpportunity" in upwork_block
+    assert "const jobDetailsStateOpportunity = upworkJobDetailsOpportunity()" in upwork_block
+    assert "if (jobDetailsStateOpportunity) return jobDetailsStateOpportunity" in upwork_block
     assert "Upwork apply-page job title was not found in Nuxt job state." in upwork_block
     assert "Upwork apply-page job description was not found in Nuxt job state." in upwork_block
+    assert "Upwork job-detail title was not found in Nuxt job state." in upwork_block
+    assert "Upwork job-detail description was not found in Nuxt job state." in upwork_block
 
 
 def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
