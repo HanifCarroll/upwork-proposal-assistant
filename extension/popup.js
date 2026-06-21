@@ -377,6 +377,28 @@ async function waitForTabComplete(tabId, timeoutMs = 15000) {
   throw new Error("Opened tab did not finish loading.");
 }
 
+function nextDiceResultsUrl(value) {
+  try {
+    const url = new URL(value);
+    if (!url.hostname.includes("dice.com") || url.pathname !== "/jobs") return "";
+    const currentPage = Number.parseInt(url.searchParams.get("page") || "1", 10);
+    url.searchParams.set("page", String(Number.isFinite(currentPage) && currentPage > 0 ? currentPage + 1 : 2));
+    return url.href;
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function advanceActiveDiceResultsPage() {
+  const tab = await activeTab();
+  if (!tab.id) throw new Error("No active Dice results tab found.");
+  const nextUrl = nextDiceResultsUrl(tab.url || "");
+  if (!nextUrl) throw new Error("The active tab is not a Dice results page.");
+  await chrome.tabs.update(tab.id, { url: nextUrl });
+  await waitForTabComplete(tab.id);
+  await refreshDicePostingPicker();
+}
+
 async function clickDiceEasyApplyInTab(tabId) {
   try {
     return await sendClickDiceEasyApplyMessage(tabId);
@@ -902,12 +924,16 @@ els.dicePostingOpenSelected.addEventListener("click", async () => {
       }
     }
     const clickedCount = postings.length - failures.length;
+    if (clickedCount > 0) {
+      els.dicePostingStatus.textContent = "Loading next page...";
+      await advanceActiveDiceResultsPage();
+    }
     if (failures.length) {
-      els.dicePostingStatus.textContent = `Started ${clickedCount}; ${failures.length} failed.`;
+      els.dicePostingStatus.textContent = `Started ${clickedCount}; ${failures.length} failed. Next page loaded.`;
       setStatus(failures[0], "error");
     } else {
-      els.dicePostingStatus.textContent = `Started ${clickedCount} Easy Apply flow${clickedCount === 1 ? "" : "s"}.`;
-      setStatus(`Started ${clickedCount} Dice Easy Apply flow${clickedCount === 1 ? "" : "s"}.`);
+      els.dicePostingStatus.textContent = `Started ${clickedCount} Easy Apply flow${clickedCount === 1 ? "" : "s"}. Next page loaded.`;
+      setStatus(`Started ${clickedCount} Dice Easy Apply flow${clickedCount === 1 ? "" : "s"} and loaded the next page.`);
     }
   } catch (error) {
     els.dicePostingStatus.textContent = error.message || "Could not open selected postings.";

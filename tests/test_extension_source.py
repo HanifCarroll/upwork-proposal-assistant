@@ -122,8 +122,15 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
     assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in popup_js
     assert "renderDicePostingPicker" in popup_js
     assert "waitForTabComplete" in popup_js
+    assert "nextDiceResultsUrl" in popup_js
+    assert 'url.pathname !== "/jobs"' in popup_js
+    assert 'url.searchParams.set("page"' in popup_js
+    assert "advanceActiveDiceResultsPage" in popup_js
+    assert "chrome.tabs.update(tab.id, { url: nextUrl })" in popup_js
     assert "openPostingAndClickEasyApply" in popup_js
     assert "chrome.tabs.create({ url: posting.url, active: false })" in popup_js
+    assert "await advanceActiveDiceResultsPage()" in popup_js
+    assert "Next page loaded." in popup_js
     assert "Open Easy Apply" in popup_html
 
 
