@@ -392,17 +392,23 @@ def test_extension_wires_application_logging() -> None:
     assert 'window.setInterval(() => handleRouteChange(), 1000)' in dice_wizard_assistant_js
     assert "autoStartedForJobId" in dice_wizard_assistant_js
     assert "AUTO_NEXT_KEY" in dice_wizard_assistant_js
+    assert "AUTO_NEXT_MAX_ATTEMPTS = 3" in dice_wizard_assistant_js
     assert "AUTO_SUBMIT_KEY" in dice_wizard_assistant_js
     assert "COVER_LETTER_SELECTOR" in dice_wizard_assistant_js
+    assert "function sessionCount" in dice_wizard_assistant_js
     assert "function coverLetterAttachmentPresent" in dice_wizard_assistant_js
+    assert 'return /\\.pdf/i.test(clean(coverLetter.textContent || ""));' in dice_wizard_assistant_js
     assert 'wizardButton("Next")' in dice_wizard_assistant_js
     assert 'wizardButton("Submit")' in dice_wizard_assistant_js
+    assert "attempts >= AUTO_NEXT_MAX_ATTEMPTS" in dice_wizard_assistant_js
+    assert "location.href === hrefBeforeClick" in dice_wizard_assistant_js
     assert 'setPanelStatus("Cover letter attached. Continuing to review..."' in dice_wizard_assistant_js
     assert 'setPanelStatus("Submitting Dice application..."' in dice_wizard_assistant_js
-    assert "window.setTimeout(() => next.click(), 0)" in dice_wizard_assistant_js
+    assert "next.click();" in dice_wizard_assistant_js
     assert "window.setTimeout(() => submit.click(), 0)" in dice_wizard_assistant_js
     assert "installWizardAutomationWatcher" in dice_wizard_assistant_js
     assert "MutationObserver" in dice_wizard_assistant_js
+    assert "characterData: true" in dice_wizard_assistant_js
     assert "coverLetterFileInput" not in dice_wizard_assistant_js
     assert "DOWNLOAD_PDF" not in dice_wizard_assistant_js
     assert "input.files = transfer.files" not in dice_wizard_assistant_js

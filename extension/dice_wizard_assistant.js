@@ -7,6 +7,7 @@
   const PANEL_ID = "job-application-dice-cover-letter-panel";
   const AUTO_STARTED_KEY = "jobApplicationDiceCoverLetterAutoStarted";
   const AUTO_NEXT_KEY = "jobApplicationDiceCoverLetterAutoNext";
+  const AUTO_NEXT_MAX_ATTEMPTS = 3;
   const AUTO_SUBMIT_KEY = "jobApplicationDiceSubmitAutoClicked";
   const COVER_LETTER_SELECTOR = '[data-testid="cover-letter"]';
 
@@ -384,6 +385,11 @@
     return `${prefix}:${jobApplicationId() || location.pathname}`;
   }
 
+  function sessionCount(key) {
+    const count = Number.parseInt(sessionStorage.getItem(key) || "0", 10);
+    return Number.isFinite(count) && count > 0 ? count : 0;
+  }
+
   function usableButton(button) {
     return (
       button instanceof HTMLButtonElement &&
@@ -402,7 +408,7 @@
   function coverLetterAttachmentPresent() {
     const coverLetter = document.querySelector(COVER_LETTER_SELECTOR);
     if (!coverLetter) return false;
-    return /\.pdf(?:\s|$)/i.test(clean(coverLetter.textContent || ""));
+    return /\.pdf/i.test(clean(coverLetter.textContent || ""));
   }
 
   function clickNextAfterCoverLetterIfReady() {
@@ -411,11 +417,20 @@
     if (!next) return false;
 
     const key = jobScopedKey(AUTO_NEXT_KEY);
-    if (sessionStorage.getItem(key)) return false;
-    sessionStorage.setItem(key, new Date().toISOString());
+    const attempts = sessionCount(key);
+    if (attempts >= AUTO_NEXT_MAX_ATTEMPTS) return false;
+    sessionStorage.setItem(key, String(attempts + 1));
 
     setPanelStatus("Cover letter attached. Continuing to review...", { busy: true, label: "Continuing..." });
-    window.setTimeout(() => next.click(), 0);
+    const hrefBeforeClick = location.href;
+    window.setTimeout(() => {
+      next.click();
+      window.setTimeout(() => {
+        if (location.href === hrefBeforeClick && wizardButton("Next") && coverLetterAttachmentPresent()) {
+          scheduleWizardAutomation(0);
+        }
+      }, 1500);
+    }, 0);
     return true;
   }
 
@@ -453,6 +468,7 @@
       childList: true,
       subtree: true,
       attributes: true,
+      characterData: true,
       attributeFilter: ["aria-disabled", "data-testid", "disabled"],
     });
     window.setInterval(() => scheduleWizardAutomation(0), 1200);
