@@ -24,7 +24,7 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 - Provides a Chrome options page for configuring the local backend URL.
 - Drafts cover letters and Upwork proposals.
 - Generates professional PDF cover letters and can reveal the generated file in Finder.
-- Lists visible Easy Apply Dice search postings in the popup, opens selected postings into their application flows, then advances to the next results page.
+- Lists visible Easy Apply Dice search postings in the popup, opens selected postings into their application flows, and can advance to the next results page.
 
 ## Architecture
 
@@ -74,12 +74,12 @@ The extension uses site adapters that convert each page into the same normalized
 | Site | Supported page shape |
 | --- | --- |
 | Upwork | Job feed cards and proposal/job-detail pages. |
-| Dice | Job-detail pages, using `JobPosting` JSON-LD when available. Search result pages can list visible Easy Apply postings, open selected application flows, and advance to the next results page. |
+| Dice | Job-detail pages, using `JobPosting` JSON-LD when available. Search result pages can list visible Easy Apply postings, open selected application flows, and advance to the next results page manually or after selected flows start. |
 | Indeed | Search result pages with the selected job detail panel. |
 | ZipRecruiter | Search result pages with the selected job detail pane. |
 | Robert Half | Search result pages with the selected job detail card. |
 
-The extension reads the job page you are viewing. On Dice search results, it can open selected visible Easy Apply postings from the current page in new tabs, click each detail page's Easy Apply link, then advance the original results tab to the next page and refresh the popup list. It does not crawl job boards or submit applications.
+The extension reads the job page you are viewing. On Dice search results, it can open selected visible Easy Apply postings from the current page in new tabs, click each detail page's Easy Apply link, then advance the original results tab to the next page and refresh the popup list. The same popup panel has a `Next page` button for skipping a results page without opening anything. It does not crawl job boards or submit applications.
 
 Application logging is conservative. The popup provides a manual `Mark Applied` action for the current job snapshot. A separate content script also records a pending snapshot when a known platform submit control is clicked, then logs the application only after a platform-specific confirmation selector or confirmation URL is observed. Unknown application flows are not guessed from page-wide text.
 

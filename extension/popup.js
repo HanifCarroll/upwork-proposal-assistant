@@ -42,6 +42,7 @@ const els = {
   elapsed: document.querySelector("#elapsed"),
   dicePostingPicker: document.querySelector("#dice-posting-picker"),
   dicePostingSummary: document.querySelector("#dice-posting-summary"),
+  dicePostingNextPage: document.querySelector("#dice-posting-next-page"),
   dicePostingSelectAll: document.querySelector("#dice-posting-select-all"),
   dicePostingList: document.querySelector("#dice-posting-list"),
   dicePostingOpenSelected: document.querySelector("#dice-posting-open-selected"),
@@ -207,6 +208,7 @@ function clearDicePostingPicker() {
   els.dicePostingSummary.textContent = "0 Easy Apply";
   els.dicePostingStatus.textContent = "";
   els.dicePostingOpenSelected.disabled = true;
+  els.dicePostingNextPage.disabled = true;
   els.dicePostingSelectAll.disabled = true;
   els.dicePostingSelectAll.textContent = "Select all";
 }
@@ -223,13 +225,25 @@ function updateDicePostingControls() {
   els.dicePostingOpenSelected.disabled = selectedCount === 0;
   els.dicePostingSelectAll.disabled = totalCount === 0;
   els.dicePostingSelectAll.textContent = selectedCount === totalCount && totalCount > 0 ? "Clear" : "Select all";
-  els.dicePostingStatus.textContent = selectedCount ? `${selectedCount} selected` : "";
+  if (selectedCount) {
+    els.dicePostingStatus.textContent = `${selectedCount} selected`;
+  } else if (/^\d+ selected$/.test(els.dicePostingStatus.textContent)) {
+    els.dicePostingStatus.textContent = "";
+  }
 }
 
-function renderDicePostingPicker(postings) {
+function renderDicePostingPicker(postings, { showEmpty = false } = {}) {
   dicePostings = postings.filter((posting) => posting?.title && posting?.url);
   if (!dicePostings.length) {
-    clearDicePostingPicker();
+    if (!showEmpty) {
+      clearDicePostingPicker();
+      return;
+    }
+    els.dicePostingList.textContent = "";
+    els.dicePostingSummary.textContent = "0 Easy Apply";
+    els.dicePostingPicker.hidden = false;
+    els.dicePostingNextPage.disabled = false;
+    updateDicePostingControls();
     return;
   }
 
@@ -251,12 +265,18 @@ function renderDicePostingPicker(postings) {
 
   els.dicePostingSummary.textContent = `${dicePostings.length} Easy Apply`;
   els.dicePostingPicker.hidden = false;
+  els.dicePostingNextPage.disabled = false;
   updateDicePostingControls();
 }
 
 async function refreshDicePostingPicker() {
-  const postings = await listActivePagePostings();
-  renderDicePostingPicker(postings);
+  const tab = await activeTab();
+  if (!nextDiceResultsUrl(tab.url || "")) {
+    clearDicePostingPicker();
+    return;
+  }
+  const postings = await listPostingsFromTab(tab.id);
+  renderDicePostingPicker(postings, { showEmpty: true });
 }
 
 function setApplicationControls() {
@@ -353,11 +373,15 @@ async function sendExtractMessage(tabId) {
 
 async function listActivePagePostings() {
   const tab = await activeTab();
+  return listPostingsFromTab(tab.id);
+}
+
+async function listPostingsFromTab(tabId) {
   try {
-    return await sendPostingListMessage(tab.id);
+    return await sendPostingListMessage(tabId);
   } catch (_err) {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content_script.js"] });
-    return await sendPostingListMessage(tab.id);
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content_script.js"] });
+    return await sendPostingListMessage(tabId);
   }
 }
 
@@ -906,6 +930,24 @@ els.dicePostingSelectAll.addEventListener("click", () => {
     input.checked = shouldSelect;
   });
   updateDicePostingControls();
+});
+
+els.dicePostingNextPage.addEventListener("click", async () => {
+  try {
+    els.dicePostingNextPage.disabled = true;
+    els.dicePostingStatus.textContent = "Loading next page...";
+    await advanceActiveDiceResultsPage();
+    els.dicePostingStatus.textContent = `${dicePostings.length} Easy Apply on this page.`;
+    setStatus("Loaded next Dice results page.");
+  } catch (error) {
+    els.dicePostingStatus.textContent = error.message || "Could not load the next page.";
+    setStatus(error.message, "error");
+  } finally {
+    if (!els.dicePostingPicker.hidden) {
+      els.dicePostingNextPage.disabled = false;
+    }
+    updateDicePostingControls();
+  }
 });
 
 els.dicePostingOpenSelected.addEventListener("click", async () => {

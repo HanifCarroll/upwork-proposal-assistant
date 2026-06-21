@@ -44,6 +44,12 @@ body {
   gap: 6px;
 }
 
+.posting-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .result-actions {
   display: flex;
   gap: 6px;

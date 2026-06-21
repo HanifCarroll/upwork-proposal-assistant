@@ -110,6 +110,7 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
     for field_id in [
         "dice-posting-picker",
         "dice-posting-summary",
+        "dice-posting-next-page",
         "dice-posting-select-all",
         "dice-posting-list",
         "dice-posting-open-selected",
@@ -118,9 +119,11 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
         assert f'id="{field_id}"' in popup_html
 
     assert "listActivePagePostings" in popup_js
+    assert "listPostingsFromTab" in popup_js
     assert "APPLICATION_DRAFT_LIST_POSTINGS" in popup_js
     assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in popup_js
     assert "renderDicePostingPicker" in popup_js
+    assert "showEmpty = false" in popup_js
     assert "waitForTabComplete" in popup_js
     assert "nextDiceResultsUrl" in popup_js
     assert 'url.pathname !== "/jobs"' in popup_js
@@ -130,7 +133,9 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
     assert "openPostingAndClickEasyApply" in popup_js
     assert "chrome.tabs.create({ url: posting.url, active: false })" in popup_js
     assert "await advanceActiveDiceResultsPage()" in popup_js
+    assert "Loaded next Dice results page." in popup_js
     assert "Next page loaded." in popup_js
+    assert "Next page" in popup_html
     assert "Open Easy Apply" in popup_html
 
 
