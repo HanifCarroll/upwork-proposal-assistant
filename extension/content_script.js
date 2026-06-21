@@ -160,18 +160,56 @@
     }
   }
 
+  function diceEasyApplyLink(root = document) {
+    return Array.from(root.querySelectorAll('a')).find((link) => clean(link.textContent || link.getAttribute("aria-label") || "") === "Easy Apply") || null;
+  }
+
   function diceSearchResultPostings(root = document) {
     if (!location.hostname.includes("dice.com") || location.pathname !== "/jobs") return [];
     const seenUrls = new Set();
     const postings = [];
-    for (const link of root.querySelectorAll('[data-testid="job-search-job-detail-link"]')) {
-      const title = clean(link.textContent || "");
-      const url = absoluteUrl(link.getAttribute("href") || "");
+    for (const card of root.querySelectorAll('[data-testid="job-card"]')) {
+      const easyApply = diceEasyApplyLink(card);
+      if (!easyApply) continue;
+      const link = card.querySelector('[data-testid="job-search-job-detail-link"]');
+      const title = clean(link?.textContent || "");
+      const url = absoluteUrl(link?.getAttribute("href") || "");
       if (!title || !url || seenUrls.has(url)) continue;
       seenUrls.add(url);
-      postings.push({ title, url });
+      postings.push({
+        title,
+        url,
+        easy_apply_url: absoluteUrl(easyApply.getAttribute("href") || "") || url,
+      });
     }
     return postings;
+  }
+
+  function diceDetailEasyApplyLink(root = document) {
+    if (!location.hostname.includes("dice.com") || !location.pathname.startsWith("/job-detail/")) return null;
+    const link = root.querySelector('[data-testid="apply-button"]');
+    if (!link || clean(link.textContent || link.getAttribute("aria-label") || "") !== "Easy Apply") return null;
+    return link;
+  }
+
+  async function waitForDiceDetailEasyApplyLink(timeoutMs = 8000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const link = diceDetailEasyApplyLink();
+      if (link) return link;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    return null;
+  }
+
+  async function clickDiceDetailEasyApply() {
+    const link = await waitForDiceDetailEasyApplyLink();
+    if (!link) {
+      return { clicked: false, error: "Dice Easy Apply control was not found on the detail page." };
+    }
+    const nextUrl = absoluteUrl(link.getAttribute("href") || "");
+    setTimeout(() => link.click(), 0);
+    return { clicked: true, next_url: nextUrl };
   }
 
   function opportunity(source, values) {
@@ -500,6 +538,12 @@
       if (message?.type === "APPLICATION_DRAFT_LIST_POSTINGS") {
         Promise.resolve(diceSearchResultPostings())
           .then((postings) => sendResponse({ ok: true, postings }))
+          .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+        return true;
+      }
+      if (message?.type === "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY") {
+        clickDiceDetailEasyApply()
+          .then((result) => sendResponse({ ok: true, ...result }))
           .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
         return true;
       }

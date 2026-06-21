@@ -204,7 +204,7 @@ function clearDicePostingPicker() {
   dicePostings = [];
   els.dicePostingPicker.hidden = true;
   els.dicePostingList.textContent = "";
-  els.dicePostingSummary.textContent = "0 visible";
+  els.dicePostingSummary.textContent = "0 Easy Apply";
   els.dicePostingStatus.textContent = "";
   els.dicePostingOpenSelected.disabled = true;
   els.dicePostingSelectAll.disabled = true;
@@ -249,7 +249,7 @@ function renderDicePostingPicker(postings) {
     els.dicePostingList.append(row);
   });
 
-  els.dicePostingSummary.textContent = `${dicePostings.length} visible`;
+  els.dicePostingSummary.textContent = `${dicePostings.length} Easy Apply`;
   els.dicePostingPicker.hidden = false;
   updateDicePostingControls();
 }
@@ -365,6 +365,39 @@ async function sendPostingListMessage(tabId) {
   const response = await chrome.tabs.sendMessage(tabId, { type: "APPLICATION_DRAFT_LIST_POSTINGS" });
   if (!response?.ok) throw new Error(response?.error || "Could not list job postings.");
   return Array.isArray(response.postings) ? response.postings : [];
+}
+
+async function waitForTabComplete(tabId, timeoutMs = 15000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab?.status === "complete") return;
+    await sleep(250);
+  }
+  throw new Error("Opened tab did not finish loading.");
+}
+
+async function clickDiceEasyApplyInTab(tabId) {
+  try {
+    return await sendClickDiceEasyApplyMessage(tabId);
+  } catch (_err) {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content_script.js"] });
+    return await sendClickDiceEasyApplyMessage(tabId);
+  }
+}
+
+async function sendClickDiceEasyApplyMessage(tabId) {
+  const response = await chrome.tabs.sendMessage(tabId, { type: "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" });
+  if (!response?.ok) throw new Error(response?.error || "Could not click Dice Easy Apply.");
+  if (!response.clicked) throw new Error(response.error || "Dice Easy Apply control was not found.");
+  return response;
+}
+
+async function openPostingAndClickEasyApply(posting) {
+  const tab = await chrome.tabs.create({ url: posting.url, active: false });
+  if (!tab?.id) throw new Error("Could not open Dice posting tab.");
+  await waitForTabComplete(tab.id);
+  return clickDiceEasyApplyInTab(tab.id);
 }
 
 async function captureActivePage({ statusText = "Review the current page snapshot before drafting." } = {}) {
@@ -856,14 +889,26 @@ els.dicePostingSelectAll.addEventListener("click", () => {
 els.dicePostingOpenSelected.addEventListener("click", async () => {
   const postings = selectedDicePostingIndexes().map((index) => dicePostings[index]);
   if (!postings.length) return;
+  const failures = [];
   try {
     els.dicePostingOpenSelected.disabled = true;
     els.dicePostingStatus.textContent = "Opening tabs...";
     for (const posting of postings) {
-      await chrome.tabs.create({ url: posting.url, active: false });
+      try {
+        els.dicePostingStatus.textContent = `Opening ${posting.title}...`;
+        await openPostingAndClickEasyApply(posting);
+      } catch (error) {
+        failures.push(`${posting.title}: ${error.message || "Easy Apply was not clicked."}`);
+      }
     }
-    els.dicePostingStatus.textContent = `Opened ${postings.length} tab${postings.length === 1 ? "" : "s"}.`;
-    setStatus(`Opened ${postings.length} Dice posting${postings.length === 1 ? "" : "s"}.`);
+    const clickedCount = postings.length - failures.length;
+    if (failures.length) {
+      els.dicePostingStatus.textContent = `Started ${clickedCount}; ${failures.length} failed.`;
+      setStatus(failures[0], "error");
+    } else {
+      els.dicePostingStatus.textContent = `Started ${clickedCount} Easy Apply flow${clickedCount === 1 ? "" : "s"}.`;
+      setStatus(`Started ${clickedCount} Dice Easy Apply flow${clickedCount === 1 ? "" : "s"}.`);
+    }
   } catch (error) {
     els.dicePostingStatus.textContent = error.message || "Could not open selected postings.";
     setStatus(error.message, "error");

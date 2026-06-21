@@ -89,13 +89,20 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
     dice_listing_block = content_script.split("function diceSearchResultPostings", 1)[1].split("function opportunity", 1)[0]
 
     assert "APPLICATION_DRAFT_LIST_POSTINGS" in content_script
+    assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in content_script
     assert "globalThis.__applicationDraftAssistantListPostings = diceSearchResultPostings" in content_script
     assert 'location.pathname !== "/jobs"' in dice_listing_block
-    assert 'querySelectorAll(\'[data-testid="job-search-job-detail-link"]\')' in dice_listing_block
-    assert "clean(link.textContent || \"\")" in dice_listing_block
-    assert "absoluteUrl(link.getAttribute(\"href\") || \"\")" in dice_listing_block
+    assert 'querySelectorAll(\'[data-testid="job-card"]\')' in dice_listing_block
+    assert "diceEasyApplyLink(card)" in dice_listing_block
+    assert "card.querySelector('[data-testid=\"job-search-job-detail-link\"]')" in dice_listing_block
+    assert "clean(link?.textContent || \"\")" in dice_listing_block
+    assert "absoluteUrl(link?.getAttribute(\"href\") || \"\")" in dice_listing_block
     assert "seenUrls.has(url)" in dice_listing_block
-    assert "postings.push({ title, url })" in dice_listing_block
+    assert "easy_apply_url: absoluteUrl(easyApply.getAttribute(\"href\") || \"\") || url" in dice_listing_block
+    assert 'root.querySelector(\'[data-testid="apply-button"]\')' in content_script
+    assert 'location.pathname.startsWith("/job-detail/")' in content_script
+    assert "clean(link.textContent || link.getAttribute(\"aria-label\") || \"\") !== \"Easy Apply\"" in content_script
+    assert "setTimeout(() => link.click(), 0)" in content_script
     assert "innerText" not in dice_listing_block
     assert "document.title" not in dice_listing_block
     assert "[class*=" not in dice_listing_block
@@ -112,9 +119,12 @@ def test_dice_search_posting_picker_uses_declared_link_contract() -> None:
 
     assert "listActivePagePostings" in popup_js
     assert "APPLICATION_DRAFT_LIST_POSTINGS" in popup_js
+    assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in popup_js
     assert "renderDicePostingPicker" in popup_js
+    assert "waitForTabComplete" in popup_js
+    assert "openPostingAndClickEasyApply" in popup_js
     assert "chrome.tabs.create({ url: posting.url, active: false })" in popup_js
-    assert "Open selected" in popup_html
+    assert "Open Easy Apply" in popup_html
 
 
 def test_ziprecruiter_extraction_uses_selected_right_pane_contract() -> None:
