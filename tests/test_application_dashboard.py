@@ -32,6 +32,18 @@ def test_filter_application_records_can_show_only_sent_today() -> None:
     assert filter_application_records([today, yesterday], sent="today", today=date(2026, 6, 20)) == [today]
 
 
+def test_filter_application_records_can_show_only_sent_yesterday() -> None:
+    today = application_record(source="dice", title="Today Role", company="Acme", applied_at="2026-06-20T12:00:00+00:00")
+    yesterday = application_record(
+        source="indeed",
+        title="Yesterday Role",
+        company="Globex",
+        applied_at="2026-06-19T12:00:00+00:00",
+    )
+
+    assert filter_application_records([today, yesterday], sent="yesterday", today=date(2026, 6, 20)) == [yesterday]
+
+
 def test_sort_application_records_sorts_before_display_limit() -> None:
     dice = application_record(source="dice", title="Software Engineer", company="SkyBridge Resources", location="Remote")
     indeed = application_record(source="indeed", title="Backend Developer", company="Acme", location="New York")
@@ -100,6 +112,7 @@ def test_render_application_dashboard_shows_today_filter_pagination_and_totals()
     )
 
     assert '<option value="today" selected>Sent today</option>' in html
+    assert '<option value="yesterday">Sent yesterday</option>' in html
     assert "Sent today" in html
     assert "Matching filters" in html
     assert "This page" in html
@@ -111,6 +124,26 @@ def test_render_application_dashboard_shows_today_filter_pagination_and_totals()
     assert "q=role" in html
     assert "source=dice" in html
     assert "sent=today" in html
+
+
+def test_render_application_dashboard_shows_yesterday_filter_selection() -> None:
+    record = application_record(
+        source="indeed",
+        title="Yesterday Role",
+        company="Globex",
+        applied_at="2026-06-19T12:00:00+00:00",
+    )
+
+    html = render_application_dashboard(
+        records=[record],
+        all_records=[record],
+        query="role",
+        sent="yesterday",
+        limit=50,
+    )
+
+    assert '<option value="yesterday" selected>Sent yesterday</option>' in html
+    assert "sent=yesterday" in html
 
 
 def test_render_application_dashboard_hides_imported_application_time() -> None:

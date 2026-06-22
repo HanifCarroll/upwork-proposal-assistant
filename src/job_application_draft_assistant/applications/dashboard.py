@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from html import escape
 from typing import Sequence
 from urllib.parse import urlencode
@@ -30,8 +30,8 @@ def filter_application_records(
     today: date | None = None,
 ) -> list[ApplicationRecord]:
     filtered = [record for record in records if not source or record.source == source]
-    if sent == "today":
-        target_date = today or _local_today()
+    if sent in {"today", "yesterday"}:
+        target_date = _sent_filter_date(sent, today=today)
         filtered = [record for record in filtered if _applied_local_date(record.applied_at) == target_date]
     normalized_query = query.strip().lower()
     if not normalized_query:
@@ -467,7 +467,7 @@ def _sort_state(sort: str, direction: str) -> tuple[str, str]:
 
 
 def _sent_state(sent: str) -> str:
-    return "today" if sent == "today" else ""
+    return sent if sent in {"today", "yesterday"} else ""
 
 
 def _sort_header(
@@ -631,6 +631,13 @@ def _local_today() -> date:
     return datetime.now().astimezone().date()
 
 
+def _sent_filter_date(sent: str, *, today: date | None = None) -> date:
+    target_date = today or _local_today()
+    if sent == "yesterday":
+        return target_date - timedelta(days=1)
+    return target_date
+
+
 def _parse_datetime(value: str) -> datetime | None:
     if not value:
         return None
@@ -650,7 +657,12 @@ def _limit_options(selected_limit: int) -> str:
 
 def _sent_options(selected_sent: str) -> str:
     today_selected = " selected" if selected_sent == "today" else ""
-    return f'<option value="">All dates</option><option value="today"{today_selected}>Sent today</option>'
+    yesterday_selected = " selected" if selected_sent == "yesterday" else ""
+    return (
+        f'<option value="">All dates</option>'
+        f'<option value="today"{today_selected}>Sent today</option>'
+        f'<option value="yesterday"{yesterday_selected}>Sent yesterday</option>'
+    )
 
 
 def _h(value: object) -> str:

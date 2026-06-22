@@ -244,7 +244,7 @@ View the local dashboard while the backend is running:
 http://127.0.0.1:8787/dashboard
 ```
 
-The dashboard supports search, source/date filters including `Sent today`, sortable columns, paginated rows, and top-level ledger totals.
+The dashboard supports search, source/date filters including `Sent today` and `Sent yesterday`, sortable columns, paginated rows, and top-level ledger totals.
 
 The extension checks the current job source URL against `/applications/lookup`. If the normalized URL is already in SQLite, the popup shows an already-applied status and supported job pages show a small already-applied badge. Immediately after a supported platform confirms a submitted application, the page badge confirms `Application recorded` for that submission instead of treating it as a prior application.
 

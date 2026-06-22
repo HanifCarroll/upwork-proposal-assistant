@@ -3,7 +3,18 @@
 
   const common = globalThis.JobApplicationExtractorCommon;
   const registry = globalThis.JobApplicationExtractors;
-  const dice = globalThis.JobApplicationDiceOpportunity;
+
+  function listDicePostings() {
+    return globalThis.JobApplicationDiceOpportunity?.searchResultPostings?.() || [];
+  }
+
+  async function clickDiceEasyApply() {
+    const dice = globalThis.JobApplicationDiceOpportunity;
+    if (typeof dice?.clickDetailEasyApply !== "function") {
+      throw new Error("Dice Easy Apply support is unavailable on this page.");
+    }
+    return dice.clickDetailEasyApply();
+  }
 
   async function extractOpportunity() {
     const adapter = registry.adapters.find((candidate) => candidate.matches());
@@ -22,7 +33,7 @@
   }
 
   globalThis.__applicationDraftAssistantExtract = extractOpportunity;
-  globalThis.__applicationDraftAssistantListPostings = dice.searchResultPostings;
+  globalThis.__applicationDraftAssistantListPostings = listDicePostings;
 
   if (globalThis.chrome?.runtime?.onMessage && !globalThis.__applicationDraftAssistantMessageListenerInstalled) {
     globalThis.__applicationDraftAssistantMessageListenerInstalled = true;
@@ -34,7 +45,7 @@
         return true;
       }
       if (message?.type === "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY") {
-        dice.clickDetailEasyApply()
+        clickDiceEasyApply()
           .then((result) => sendResponse({ ok: true, ...result }))
           .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
         return true;

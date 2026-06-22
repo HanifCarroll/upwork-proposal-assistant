@@ -35,7 +35,10 @@ def test_content_script_is_only_registry_and_message_bridge() -> None:
     assert "JobApplicationExtractorCommon" in content_script
     assert "JobApplicationDiceOpportunity" in content_script
     assert "globalThis.__applicationDraftAssistantExtract = extractOpportunity" in content_script
-    assert "globalThis.__applicationDraftAssistantListPostings = dice.searchResultPostings" in content_script
+    assert "function listDicePostings" in content_script
+    assert "globalThis.JobApplicationDiceOpportunity?.searchResultPostings?.() || []" in content_script
+    assert "globalThis.__applicationDraftAssistantListPostings = listDicePostings" in content_script
+    assert "Dice Easy Apply support is unavailable on this page." in content_script
     assert "APPLICATION_DRAFT_LIST_POSTINGS" in content_script
     assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in content_script
     assert "APPLICATION_DRAFT_EXTRACT" in content_script
