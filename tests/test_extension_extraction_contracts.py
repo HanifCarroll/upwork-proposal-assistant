@@ -16,7 +16,7 @@ def test_manifest_loads_extraction_modules_before_content_script() -> None:
     manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
     scripts = manifest["content_scripts"][0]["js"]
 
-    assert scripts[:8] == [
+    assert scripts[:10] == [
         "extractors/common.js",
         "platforms/dice_opportunity.js",
         "extractors/upwork.js",
@@ -24,6 +24,8 @@ def test_manifest_loads_extraction_modules_before_content_script() -> None:
         "extractors/indeed.js",
         "extractors/ziprecruiter.js",
         "extractors/roberthalf.js",
+        "extractors/linkedin.js",
+        "ui/dice_cover_letter_runs.js",
         "content_script.js",
     ]
 
@@ -56,6 +58,7 @@ def test_extraction_modules_keep_weak_inference_patterns_out() -> None:
             read("extractors/upwork.js"),
             read("extractors/ziprecruiter.js"),
             read("extractors/roberthalf.js"),
+            read("extractors/linkedin.js"),
             read("platforms/dice_opportunity.js"),
         ]
     )
@@ -183,3 +186,27 @@ def test_other_platform_extractors_use_declared_detail_contracts() -> None:
     assert 'details?.getAttribute("copy")' in roberthalf
     assert '[data-testid="job-details-description"]' in roberthalf
     assert '[data-testid="job-details-requirements"]' in roberthalf
+
+
+def test_linkedin_extractor_uses_job_ids_and_easy_apply_contracts() -> None:
+    linkedin = read("extractors/linkedin.js")
+    manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
+    scripts = manifest["content_scripts"][0]["js"]
+
+    assert "https://www.linkedin.com/*" in manifest["host_permissions"]
+    assert "https://*.linkedin.com/*" in manifest["host_permissions"]
+    assert "https://www.linkedin.com/*" in manifest["content_scripts"][0]["matches"]
+    assert scripts.index("extractors/linkedin.js") < scripts.index("content_script.js")
+    assert 'id: "linkedin"' in linkedin
+    assert 'location.hostname.includes("linkedin.com")' in linkedin
+    assert 'searchParams.get("currentJobId")' in linkedin
+    assert 'location.pathname.match(/^\\/jobs\\/view\\/(\\d+)\\/?/)' in linkedin
+    assert 'button[data-live-test-job-apply-button][data-job-id]' in linkedin
+    assert "`/jobs/view/${jobId}/`" in linkedin
+    assert 'label.match(/^Easy Apply to (.+) at (.+)$/)' in linkedin
+    assert "#jobs-apply-see-application-link" in linkedin
+    assert ".job-details-jobs-unified-top-card" in linkedin
+    assert ".job-details-jobs-unified-top-card__job-title" in linkedin
+    assert ".job-details-jobs-unified-top-card__company-name" in linkedin
+    assert ".jobs-description__content .jobs-box__html-content" in linkedin
+    assert "LinkedIn job id was not found" in linkedin

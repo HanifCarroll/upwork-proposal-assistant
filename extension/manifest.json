@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "description": "Extract job context and draft auditable applications through a local Python/Codex backend.",
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Draft application"
   },
   "side_panel": {
@@ -26,6 +25,8 @@
     "https://*.ziprecruiter.com/*",
     "https://www.roberthalf.com/*",
     "https://*.roberthalf.com/*",
+    "https://www.linkedin.com/*",
+    "https://*.linkedin.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
@@ -41,7 +42,9 @@
         "https://www.ziprecruiter.com/*",
         "https://*.ziprecruiter.com/*",
         "https://www.roberthalf.com/*",
-        "https://*.roberthalf.com/*"
+        "https://*.roberthalf.com/*",
+        "https://www.linkedin.com/*",
+        "https://*.linkedin.com/*"
       ],
       "js": [
         "extractors/common.js",
@@ -51,6 +54,8 @@
         "extractors/indeed.js",
         "extractors/ziprecruiter.js",
         "extractors/roberthalf.js",
+        "extractors/linkedin.js",
+        "ui/dice_cover_letter_runs.js",
         "content_script.js",
         "application/ledger_badge.js",
         "application_logger.js",

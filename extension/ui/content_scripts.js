@@ -7,6 +7,7 @@
     "extractors/indeed.js",
     "extractors/ziprecruiter.js",
     "extractors/roberthalf.js",
+    "extractors/linkedin.js",
     "content_script.js",
   ];
 

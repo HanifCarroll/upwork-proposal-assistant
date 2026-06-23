@@ -20,14 +20,20 @@ def test_application_logger_loads_after_ledger_badge_and_uses_shared_dice_captur
 
     assert scripts.index("application/ledger_badge.js") < scripts.index("application_logger.js")
     assert scripts.index("platforms/dice_opportunity.js") < scripts.index("application_logger.js")
+    assert scripts.index("ui/dice_cover_letter_runs.js") < scripts.index("application_logger.js")
     assert "JobApplicationLedgerBadge" in badge
     assert "job-application-ledger-badge" in badge
     assert "visibleSourceUrl" in badge
 
     assert "const diceOpportunity = globalThis.JobApplicationDiceOpportunity" in logger
+    assert "const coverLetterRuns = globalThis.JobApplicationDiceCoverLetterRuns" in logger
     assert "const ledgerBadge = globalThis.JobApplicationLedgerBadge" in logger
     assert "diceOpportunity.detailOpportunity" in logger
     assert "diceOpportunity.wizardPageOpportunity" in logger
+    assert "function updateDiceRunConfirmed" in logger
+    assert "coverLetterRuns.upsert(jobId" in logger
+    assert 'message: response?.queued ? "Application submitted. Log queued." : "Application submitted."' in logger
+    assert 'status: "submitted"' in logger
     assert "function jobPostingJsonLd" not in logger
     assert 'script[type="application/ld+json"]' not in logger
     assert "function setLedgerBadge" not in logger
@@ -59,6 +65,8 @@ def test_application_logger_detects_submit_and_confirmation_contracts() -> None:
     for attribute_name in ["applied", "selected", "destination", "headline", "cta-type"]:
         assert f'"{attribute_name}"' in logger
     assert "(rule.confirmationSelectors || []).some" in logger
+    assert "document.querySelectorAll(item.selector)" in logger
+    assert "text.startsWith(item.textPrefix)" in logger
     assert "(rule.confirmationPathPatterns || []).some" in logger
 
 
@@ -84,3 +92,16 @@ def test_application_logger_tracks_current_upwork_dice_and_other_success_states(
     assert 'rhcl-job-card[data-testid="job-details"][applied="true"]' in logger
     assert 'rhcl-job-card[selected="true"][applied=""]' in logger
     assert 'rhcl-job-card[selected="true"][applied="true"]' in logger
+
+
+def test_application_logger_tracks_linkedin_easy_apply_submission_states() -> None:
+    logger = read("application_logger.js")
+
+    assert 'source: "linkedin"' in logger
+    assert 'hosts: ["linkedin.com"]' in logger
+    assert '.jobs-easy-apply-modal__content button[data-live-test-easy-apply-submit-button]' in logger
+    assert '{ selector: ".jobs-easy-apply-modal__content button", text: "Submit application" }' in logger
+    assert '{ selector: ".jobs-easy-apply-modal__content button", text: "Done" }' in logger
+    assert '{ selector: ".jobs-easy-apply-modal__content button", text: "Not now" }' in logger
+    assert '{ selector: "#jobs-apply-see-application-link" }' in logger
+    assert '{ selector: \'.artdeco-inline-feedback--success[role="alert"]\', textPrefix: "Applied" }' in logger

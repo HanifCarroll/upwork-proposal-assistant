@@ -4,16 +4,20 @@
   }
   globalThis.__diceCoverLetterAssistantLoaded = true;
 
-  const PANEL_ID = "job-application-dice-cover-letter-panel";
   const AUTO_STARTED_KEY = "jobApplicationDiceCoverLetterAutoStarted";
   const AUTO_NEXT_KEY = "jobApplicationDiceCoverLetterAutoNext";
   const AUTO_NEXT_MAX_ATTEMPTS = 3;
   const AUTO_SUBMIT_KEY = "jobApplicationDiceSubmitAutoClicked";
   const COVER_LETTER_SELECTOR = '[data-testid="cover-letter"]';
   const diceOpportunity = globalThis.JobApplicationDiceOpportunity;
+  const coverLetterRuns = globalThis.JobApplicationDiceCoverLetterRuns;
 
   function clean(text) {
     return (text || "").replace(/\s+/g, " ").trim();
+  }
+
+  function nowIso() {
+    return new Date().toISOString();
   }
 
   function jobApplicationId() {
@@ -28,10 +32,6 @@
     return location.hostname.includes("dice.com") && /^\/job-applications\/[^/]+\/wizard\/success\/?$/.test(location.pathname);
   }
 
-  function removePanel() {
-    document.getElementById(PANEL_ID)?.remove();
-  }
-
   function coverLetterSection() {
     const declared = document.querySelector(COVER_LETTER_SELECTOR);
     if (declared) return declared;
@@ -41,115 +41,46 @@
     }) || null;
   }
 
+  function coverLetterFileInput() {
+    const section = coverLetterSection();
+    const scopedInput = section?.querySelector('input[type="file"]');
+    if (scopedInput instanceof HTMLInputElement) return scopedInput;
+    const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')).filter((input) => {
+      return input instanceof HTMLInputElement && (input.getAttribute("accept") || "").includes(".pdf");
+    });
+    return fileInputs.length === 1 ? fileInputs[0] : null;
+  }
+
   function isResumeCoverLetterStep() {
     if (!isDiceWizard()) return false;
     return Boolean(
       coverLetterSection() ||
-        document.querySelector('input[type="file"][accept*="pdf"]') ||
+        coverLetterFileInput() ||
         document.querySelector('input[type="file"]')
     );
-  }
-
-  function ensurePanel() {
-    const existing = document.getElementById(PANEL_ID);
-    if (existing) return existing;
-    const panel = document.createElement("section");
-    panel.id = PANEL_ID;
-    panel.innerHTML = `
-      <style>
-        #${PANEL_ID} {
-          position: fixed;
-          right: 18px;
-          bottom: 18px;
-          z-index: 2147483647;
-          width: min(360px, calc(100vw - 36px));
-          border: 1px solid #b8d8ca;
-          border-radius: 8px;
-          padding: 12px;
-          background: #f4fbf8;
-          box-shadow: 0 12px 30px rgba(23, 32, 28, 0.16);
-          color: #17201c;
-          font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-        #${PANEL_ID} strong {
-          display: block;
-          margin-bottom: 4px;
-          color: #15533f;
-          font-size: 13px;
-          line-height: 1.25;
-        }
-        #${PANEL_ID} p {
-          margin: 0 0 10px;
-          color: #4d6259;
-          font-size: 12px;
-          line-height: 1.35;
-        }
-        #${PANEL_ID} [data-role="actions"] {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        #${PANEL_ID} a,
-        #${PANEL_ID} button {
-          border: 1px solid #1f6f55;
-          border-radius: 7px;
-          padding: 7px 10px;
-          background: #1f6f55;
-          color: #fff;
-          font: inherit;
-          font-size: 12px;
-          font-weight: 750;
-          cursor: pointer;
-          text-decoration: none;
-        }
-        #${PANEL_ID} a.secondary,
-        #${PANEL_ID} button.secondary {
-          background: #fff;
-          color: #1f6f55;
-        }
-        #${PANEL_ID} button:disabled {
-          cursor: not-allowed;
-          opacity: 0.6;
-        }
-      </style>
-      <strong>Cover letter assistant</strong>
-      <p data-role="status">Ready to generate a cover letter PDF.</p>
-      <div data-role="actions">
-        <button type="button" data-role="primary">Generate PDF</button>
-        <a class="secondary" data-role="open-pdf" target="_blank" rel="noreferrer" hidden>Open PDF</a>
-        <button class="secondary" type="button" data-role="reveal-pdf" hidden>Show in Finder</button>
-      </div>
-    `;
-    panel.querySelector('[data-role="primary"]')?.addEventListener("click", () => {
-      startCoverLetterFlow({ force: true });
-    });
-    panel.querySelector('[data-role="reveal-pdf"]')?.addEventListener("click", () => {
-      revealCurrentPdf().catch((error) => setPanelStatus(error.message || String(error), { label: "Generate PDF" }));
-    });
-    document.documentElement.appendChild(panel);
-    return panel;
   }
 
   let panelStatus = "";
   let panelBusy = false;
   let panelLabel = "";
+  let panelStatusKind = "";
 
-  function setPanelStatus(message, { busy = false, label = "" } = {}) {
+  function setPanelStatus(message, { busy = false, label = "", status = "" } = {}) {
     const resolvedLabel = label || (busy ? "Working..." : "Generate PDF");
-    if (message === panelStatus && busy === panelBusy && resolvedLabel === panelLabel) {
+    const resolvedStatus = status || (busy ? "working" : "waiting");
+    if (message === panelStatus && busy === panelBusy && resolvedLabel === panelLabel && resolvedStatus === panelStatusKind) {
       return;
     }
     panelStatus = message;
     panelBusy = busy;
     panelLabel = resolvedLabel;
-    const panel = ensurePanel();
-    const status = panel.querySelector('[data-role="status"]');
-    const primary = panel.querySelector('[data-role="primary"]');
-    if (status) status.textContent = message;
-    if (primary instanceof HTMLButtonElement) {
-      primary.disabled = busy;
-      primary.textContent = resolvedLabel;
-    }
+    panelStatusKind = resolvedStatus;
+    updateRun({
+      busy,
+      message,
+      primary_label: resolvedLabel,
+      status: resolvedStatus,
+    });
   }
 
   let activeRun = null;
@@ -162,10 +93,19 @@
   let wizardAutomationTimer = 0;
   let wizardObserver = null;
 
+  function updateRun(patch) {
+    const jobId = jobApplicationId();
+    if (!jobId || !coverLetterRuns?.upsert) return;
+    coverLetterRuns.upsert(jobId, {
+      wizard_url: location.href,
+      ...patch,
+    }).catch(() => {});
+  }
+
   function startCoverLetterFlow(options = {}) {
     if (activeRun) return;
     activeRun = runCoverLetterFlow(options)
-      .catch((error) => setPanelStatus(error.message || String(error), { label: "Try again" }))
+      .catch((error) => setPanelStatus(error.message || String(error), { label: "Try again", status: "failed" }))
       .finally(() => {
         activeRun = null;
       });
@@ -178,8 +118,13 @@
     if (!force && sessionStorage.getItem(autoKey)) return;
     sessionStorage.setItem(autoKey, new Date().toISOString());
 
-    setPanelStatus("Reading Dice job details...", { busy: true });
+    setPanelStatus("Reading Dice job details...", { busy: true, status: "reading" });
     const opportunity = await diceDetailOpportunity(jobId);
+    updateRun({
+      company: opportunity.company || "",
+      source_url: opportunity.source_url || "",
+      title: opportunity.title || "",
+    });
     const request = {
       opportunity,
       draft_type: "cover_letter",
@@ -189,23 +134,36 @@
 
     const draft = await existingOrGeneratedDraft(opportunity.source_url, request);
     currentDraftId = draft.id;
-    setPanelStatus("Generating PDF...", { busy: true });
+    updateRun({ draft_id: draft.id });
+    setPanelStatus("Generating PDF...", { busy: true, status: "pdf_generating" });
     const pdf = await startPdfExport(draft.id);
     await showPdfActions(pdf, draft.id);
-    setPanelStatus(`PDF ready: ${pdf.filename}. Use Dice's cover-letter upload box to attach it.`, { label: "Regenerate PDF" });
+    try {
+      setPanelStatus("Attaching generated PDF...", { busy: true, label: "Attaching...", status: "attaching" });
+      await attachGeneratedPdf(pdf, draft.id);
+      setPanelStatus("PDF attached. Continuing to review...", { busy: true, label: "Continuing...", status: "continuing" });
+      scheduleWizardAutomation(0);
+      return;
+    } catch (error) {
+      setPanelStatus(`PDF ready: ${pdf.filename}. Automatic upload failed: ${error.message || String(error)}`, {
+        label: "Regenerate PDF",
+        status: "ready",
+      });
+      return;
+    }
   }
 
   async function existingOrGeneratedDraft(sourceUrl, request) {
     const existing = await chrome.runtime.sendMessage({ type: "LOOKUP_DRAFT", source_url: sourceUrl });
     if (existing?.ok && existing.matched && existing.draft?.id) {
-      setPanelStatus("Using existing draft...", { busy: true });
+      setPanelStatus("Using existing draft...", { busy: true, status: "drafting" });
       return existing.draft;
     }
     if (existing && !existing.ok) {
       throw new Error(existing.error || "Could not check for an existing draft.");
     }
 
-    setPanelStatus("Starting cover letter draft...", { busy: true });
+    setPanelStatus("Starting cover letter draft...", { busy: true, status: "drafting" });
     const started = await chrome.runtime.sendMessage({ type: "START_DRAFT_JOB", request });
     if (!started?.ok) {
       throw new Error(started?.error || "Could not start the cover letter draft.");
@@ -221,7 +179,8 @@
       const response = await chrome.runtime.sendMessage({ type: "GET_DRAFT_JOB", job_id: jobId });
       if (!response?.ok) throw new Error(response?.error || "Could not check draft job status.");
       const job = response.job;
-      setPanelStatus(`Drafting cover letter: ${job.stage || job.status}...`, { busy: true });
+      updateRun({ draft_job_id: job.id || jobId });
+      setPanelStatus(`Drafting cover letter: ${job.stage || job.status}...`, { busy: true, status: "drafting" });
       if (job.status === "succeeded") {
         if (!job.result?.id) throw new Error("Draft job succeeded without a draft id.");
         return job.result;
@@ -244,16 +203,45 @@
   async function showPdfActions(pdf, draftId) {
     currentPdf = pdf;
     currentDraftId = draftId;
-    const apiBase = await backendUrl();
-    const panel = ensurePanel();
-    const openPdf = panel.querySelector('[data-role="open-pdf"]');
-    const revealPdf = panel.querySelector('[data-role="reveal-pdf"]');
-    if (openPdf instanceof HTMLAnchorElement) {
-      openPdf.href = new URL(pdf.download_url, apiBase).href;
-      openPdf.hidden = false;
+    updateRun({ draft_id: draftId, pdf });
+  }
+
+  function bytesFromBase64(value) {
+    const binary = atob(value || "");
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
     }
-    if (revealPdf instanceof HTMLButtonElement) {
-      revealPdf.hidden = false;
+    return bytes;
+  }
+
+  async function generatedPdfFile(pdf, draftId) {
+    const response = await chrome.runtime.sendMessage({ type: "DOWNLOAD_PDF", draft_id: draftId });
+    if (!response?.ok || !response.data_base64) throw new Error(response?.error || "Could not download the generated PDF.");
+    return new File([bytesFromBase64(response.data_base64)], pdf.filename || "cover-letter.pdf", {
+      type: response.mime_type || "application/pdf",
+    });
+  }
+
+  async function waitForCoverLetterAttachment(timeoutMs = 8000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      if (coverLetterAttachmentPresent()) return true;
+      await sleep(200);
+    }
+    return false;
+  }
+
+  async function attachGeneratedPdf(pdf, draftId) {
+    const input = coverLetterFileInput();
+    if (!input) throw new Error("Dice cover-letter upload input was not found.");
+    const transfer = new DataTransfer();
+    transfer.items.add(await generatedPdfFile(pdf, draftId));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    if (!(await waitForCoverLetterAttachment())) {
+      throw new Error("Dice did not show the generated PDF as attached.");
     }
   }
 
@@ -267,10 +255,13 @@
     if (!currentDraftId && !currentPdf?.draft_id) {
       throw new Error("Generate the PDF before opening Finder.");
     }
-    setPanelStatus("Opening Finder...", { busy: true });
+    setPanelStatus("Opening Finder...", { busy: true, status: "opening_finder" });
     const response = await chrome.runtime.sendMessage({ type: "REVEAL_PDF", draft_id: currentDraftId || currentPdf.draft_id });
     if (!response?.ok || !response.opened) throw new Error(response?.error || "Could not open the generated PDF in Finder.");
-    setPanelStatus(`Finder opened. Select ${currentPdf?.filename || "the generated PDF"} in Dice's upload box.`, { label: "Regenerate PDF" });
+    setPanelStatus(`Finder opened. Select ${currentPdf?.filename || "the generated PDF"} in Dice's upload box.`, {
+      label: "Regenerate PDF",
+      status: "ready",
+    });
   }
 
   async function diceDetailOpportunity(jobId) {
@@ -324,7 +315,7 @@
     if (attempts >= AUTO_NEXT_MAX_ATTEMPTS) return false;
     sessionStorage.setItem(key, String(attempts + 1));
 
-    setPanelStatus("Cover letter attached. Continuing to review...", { busy: true, label: "Continuing..." });
+    setPanelStatus("Cover letter attached. Continuing to review...", { busy: true, label: "Continuing...", status: "continuing" });
     const hrefBeforeClick = location.href;
     window.setTimeout(() => {
       next.click();
@@ -346,21 +337,44 @@
     if (sessionStorage.getItem(key)) return false;
     sessionStorage.setItem(key, new Date().toISOString());
 
-    setPanelStatus("Submitting Dice application...", { busy: true, label: "Submitting..." });
+    setPanelStatus("Submitting Dice application...", { busy: true, label: "Submitting...", status: "submitting" });
     window.setTimeout(() => submit.click(), 0);
+    return true;
+  }
+
+  function markSubmittedIfSuccess() {
+    if (!isDiceWizardSuccessStep()) return false;
+    setPanelStatus("Application submitted.", { busy: false, label: "Regenerate PDF", status: "submitted" });
+    updateRun({ submitted_at: nowIso() });
+    return true;
+  }
+
+  function markManualQuestionsIfNeeded() {
+    if (!isDiceWizard() || isDiceWizardSuccessStep() || isResumeCoverLetterStep()) return false;
+    if (sessionCount(jobScopedKey(AUTO_NEXT_KEY)) <= 0 || !wizardButton("Next")) return false;
+    setPanelStatus("Application questions need manual answers in this Dice tab.", {
+      busy: false,
+      label: "Regenerate PDF",
+      status: "needs_attention",
+    });
     return true;
   }
 
   function advanceWizardIfReady() {
     if (!isDiceWizard() || isDiceWizardSuccessStep()) return false;
-    ensurePanel();
     return clickSubmitIfReady() || clickNextAfterCoverLetterIfReady();
+  }
+
+  function continueWizardAutomation() {
+    if (markSubmittedIfSuccess()) return true;
+    if (advanceWizardIfReady()) return true;
+    return markManualQuestionsIfNeeded();
   }
 
   function scheduleWizardAutomation(delay = 250) {
     window.clearTimeout(wizardAutomationTimer);
     wizardAutomationTimer = window.setTimeout(() => {
-      advanceWizardIfReady();
+      continueWizardAutomation();
     }, delay);
   }
 
@@ -378,14 +392,16 @@
   }
 
   function maybeStart() {
-    if (!isDiceWizard() || isDiceWizardSuccessStep()) {
-      removePanel();
+    if (markSubmittedIfSuccess()) {
       return;
     }
-    ensurePanel();
+    if (!isDiceWizard()) {
+      return;
+    }
     if (advanceWizardIfReady()) return;
+    if (markManualQuestionsIfNeeded()) return;
     if (!isResumeCoverLetterStep()) {
-      setPanelStatus("Waiting for the Resume & Cover Letter step.");
+      setPanelStatus("Waiting for the Resume & Cover Letter step.", { status: "waiting" });
       return;
     }
     const jobId = jobApplicationId();
@@ -413,8 +429,10 @@
     if (!force && location.href === lastKnownHref) return;
     lastKnownHref = location.href;
     window.clearInterval(stepPollTimer);
-    if (!isDiceWizard() || isDiceWizardSuccessStep()) {
-      removePanel();
+    if (markSubmittedIfSuccess()) {
+      return;
+    }
+    if (!isDiceWizard()) {
       return;
     }
     startStepPolling();
@@ -432,6 +450,18 @@
     }
     window.addEventListener("popstate", () => handleRouteChange());
     window.setInterval(() => handleRouteChange(), 1000);
+  }
+
+  if (globalThis.chrome?.runtime?.onMessage && !globalThis.__diceCoverLetterAssistantMessageListenerInstalled) {
+    globalThis.__diceCoverLetterAssistantMessageListenerInstalled = true;
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message?.type === "DICE_COVER_LETTER_START") {
+        startCoverLetterFlow({ force: Boolean(message.force) });
+        sendResponse({ ok: true });
+        return false;
+      }
+      return false;
+    });
   }
 
   installRouteWatcher();

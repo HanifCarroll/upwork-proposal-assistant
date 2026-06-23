@@ -164,16 +164,26 @@
       }
     }
 
-    async function openPostingAndClickEasyApply(posting) {
+    async function openPostingTab(posting) {
       const tab = await chrome.tabs.create({ url: posting.easy_apply_url || posting.url, active: false });
       if (!tab?.id) throw new Error("Could not open Dice posting tab.");
-      await waitForTabComplete(tab.id);
-      await reloadDiceTab(tab.id);
-      const currentTab = await chrome.tabs.get(tab.id);
+      return { posting, tabId: tab.id };
+    }
+
+    async function clickEasyApplyInOpenedTab({ tabId }) {
+      await waitForTabComplete(tabId);
+      await reloadDiceTab(tabId);
+      const currentTab = await chrome.tabs.get(tabId);
       if (isDiceApplicationWizardUrl(currentTab?.url || "")) {
         return { clicked: true, next_url: currentTab.url };
       }
-      return clickDiceEasyApplyInTab(tab.id);
+      return clickDiceEasyApplyInTab(tabId);
+    }
+
+    function startEasyApplyFlow(openedTab) {
+      clickEasyApplyInOpenedTab(openedTab).catch((error) => {
+        setStatus(`${openedTab.posting.title}: ${error.message || "Easy Apply was not clicked."}`, "error");
+      });
     }
 
     function attachEvents() {
@@ -215,25 +225,26 @@
           els.dicePostingStatus.textContent = `Opening ${selectedPostings.length} tab${selectedPostings.length === 1 ? "" : "s"}...`;
           const results = await Promise.all(selectedPostings.map(async (posting) => {
             try {
-              await openPostingAndClickEasyApply(posting);
-              return null;
+              return { opened: await openPostingTab(posting), error: "" };
             } catch (error) {
-              return `${posting.title}: ${error.message || "Easy Apply was not clicked."}`;
+              return { opened: null, error: `${posting.title}: ${error.message || "Tab was not opened."}` };
             }
           }));
-          failures.push(...results.filter(Boolean));
-          const clickedCount = selectedPostings.length - failures.length;
-          if (clickedCount > 0) {
+          const openedTabs = results.map((result) => result.opened).filter(Boolean);
+          failures.push(...results.map((result) => result.error).filter(Boolean));
+          openedTabs.forEach(startEasyApplyFlow);
+          const openedCount = openedTabs.length;
+          if (openedCount > 0) {
             els.dicePostingStatus.textContent = "Loading next page...";
             await advanceActivePage();
           }
           if (failures.length) {
-            const nextPageText = clickedCount > 0 ? " Next page loaded." : "";
-            els.dicePostingStatus.textContent = `Started ${clickedCount}; ${failures.length} failed.${nextPageText}`;
+            const nextPageText = openedCount > 0 ? " Next page loaded." : "";
+            els.dicePostingStatus.textContent = `Opened ${openedCount}; ${failures.length} failed.${nextPageText}`;
             setStatus(failures[0], "error");
           } else {
-            els.dicePostingStatus.textContent = `Started ${clickedCount} Easy Apply flow${clickedCount === 1 ? "" : "s"}. Next page loaded.`;
-            setStatus(`Started ${clickedCount} Dice Easy Apply flow${clickedCount === 1 ? "" : "s"} and loaded the next page.`);
+            els.dicePostingStatus.textContent = `Opened ${openedCount} Easy Apply tab${openedCount === 1 ? "" : "s"}. Next page loaded.`;
+            setStatus(`Opened ${openedCount} Dice Easy Apply tab${openedCount === 1 ? "" : "s"} and loaded the next page.`);
           }
         } catch (error) {
           els.dicePostingStatus.textContent = error.message || "Could not open selected postings.";

@@ -4,7 +4,6 @@ const DRAFT_STATE_KEY = "jobApplicationDraftState";
 const APPLICATION_QUEUE_KEY = "jobApplicationLogQueue";
 const APPLICATION_PENDING_KEY = "jobApplicationPendingApplication";
 const APPLICATION_LAST_KEY = "jobApplicationLastLogged";
-const POPUP_PATH = "popup.html";
 const SIDE_PANEL_PATH = "sidepanel.html";
 const DRAFT_SIDE_PANEL_PATH = "draft_sidepanel.html";
 
@@ -28,30 +27,19 @@ function isDiceUrl(value) {
   }
 }
 
-function isUpworkUrl(value) {
-  try {
-    const url = new URL(value || "");
-    return url.hostname === "upwork.com" || url.hostname.endsWith(".upwork.com");
-  } catch (_error) {
-    return false;
-  }
-}
-
 function sidePanelPathForUrl(url) {
-  if (isDiceUrl(url)) return SIDE_PANEL_PATH;
-  if (isUpworkUrl(url)) return DRAFT_SIDE_PANEL_PATH;
-  return "";
+  return isDiceUrl(url) ? SIDE_PANEL_PATH : DRAFT_SIDE_PANEL_PATH;
 }
 
 async function configureActionForTab(tabId, url) {
   if (!tabId) return;
   const sidePanelPath = sidePanelPathForUrl(url);
-  await chrome.action.setPopup({ tabId, popup: sidePanelPath ? "" : POPUP_PATH });
+  await chrome.action.setPopup({ tabId, popup: "" });
   if (chrome.sidePanel?.setOptions) {
     await chrome.sidePanel.setOptions({
       tabId,
-      path: sidePanelPath || SIDE_PANEL_PATH,
-      enabled: Boolean(sidePanelPath),
+      path: sidePanelPath,
+      enabled: true,
     });
   }
 }
@@ -59,6 +47,11 @@ async function configureActionForTab(tabId, url) {
 async function configureActiveTabs() {
   const tabs = await chrome.tabs.query({});
   await Promise.all(tabs.map((tab) => configureActionForTab(tab.id, tab.url).catch(() => {})));
+}
+
+function enableSidePanelActionClick() {
+  if (!chrome.sidePanel?.setPanelBehavior) return;
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 }
 
 function userErrorMessage(error) {
@@ -171,6 +164,28 @@ async function revealPdf(draftId) {
     throw new Error(await responseErrorMessage(response));
   }
   return response.json();
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return btoa(binary);
+}
+
+async function downloadPdf(draftId) {
+  const apiBase = await backendUrl();
+  const response = await fetch(`${apiBase}/drafts/${encodeURIComponent(draftId)}/pdf`);
+  if (!response.ok) {
+    throw new Error(await responseErrorMessage(response));
+  }
+  return {
+    ok: true,
+    data_base64: arrayBufferToBase64(await response.arrayBuffer()),
+    mime_type: response.headers.get("content-type") || "application/pdf",
+  };
 }
 
 async function loadApplicationQueue() {
@@ -421,6 +436,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "DOWNLOAD_PDF") {
+    downloadPdf(message.draft_id)
+      .then((response) => sendResponse(response))
+      .catch((error) => sendResponse({ ok: false, error: userErrorMessage(error) }));
+    return true;
+  }
+
   if (message?.type === "APPLICATION_CAPTURE_PENDING") {
     capturePendingApplication(message.opportunity)
       .then((response) => sendResponse(response))
@@ -451,7 +473,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 chrome.action.onClicked.addListener((tab) => {
-  if (!tab?.id || !sidePanelPathForUrl(tab.url)) return;
+  if (!tab?.id) return;
+  configureActionForTab(tab.id, tab.url).catch(() => {});
   if (!chrome.sidePanel?.open) return;
   try {
     const opened = chrome.sidePanel.open({ tabId: tab.id });
@@ -474,17 +497,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 flushQueuedApplicationLogs().catch(() => {});
+enableSidePanelActionClick();
 configureActiveTabs().catch(() => {});
 
 if (chrome.runtime.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
     flushQueuedApplicationLogs().catch(() => {});
+    enableSidePanelActionClick();
     configureActiveTabs().catch(() => {});
   });
 }
 
 if (chrome.runtime.onInstalled) {
   chrome.runtime.onInstalled.addListener(() => {
+    enableSidePanelActionClick();
     configureActiveTabs().catch(() => {});
   });
 }

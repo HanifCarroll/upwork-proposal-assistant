@@ -81,6 +81,7 @@ def test_draft_panel_injects_ordered_content_script_bundle() -> None:
     assert '"extractors/common.js"' in content_scripts
     assert '"platforms/dice_opportunity.js"' in content_scripts
     assert '"extractors/upwork.js"' in content_scripts
+    assert '"extractors/linkedin.js"' in content_scripts
     assert '"content_script.js"' in content_scripts
     assert "chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPT_FILES })" in content_scripts
     assert "globalThis.JobApplicationContentScripts.inject(tabId)" in draft_panel
@@ -111,6 +112,9 @@ def test_draft_panel_wires_application_logging_and_pdf_modules() -> None:
     assert "JobApplicationPdfControls.setPdfControls" in draft_panel
     assert "START_PDF_EXPORT" in pdf_controls
     assert "START_PDF_EXPORT" in background
+    assert "DOWNLOAD_PDF" in background
+    assert "function downloadPdf" in background
+    assert "arrayBufferToBase64" in background
     assert "pdf_status" in draft_panel
     assert "chrome.storage.onChanged" in draft_panel
     assert "/pdf`" in background

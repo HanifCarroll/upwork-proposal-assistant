@@ -4,14 +4,14 @@ A local Chrome extension and Python backend for drafting auditable job applicati
 
 The extension extracts the current job opportunity, lets you review it, and sends it to a local FastAPI service. The backend sends the full saved context to Codex for a structured draft with strategy and audit metadata in one pass. Dice Easy Apply automation can open selected flows and finish Dice's own wizard after the generated cover letter is attached.
 
-This project is not affiliated with Upwork, Dice, Indeed, ZipRecruiter, Robert Half, or any other job platform.
+This project is not affiliated with Upwork, Dice, Indeed, ZipRecruiter, Robert Half, LinkedIn, or any other job platform.
 
 This is a personal local tool shared as-is for people who want to use or adapt it. No support is guaranteed.
 
 ## Features
 
 - Extracts title, company, location, compensation, description, skills, and URL from supported job pages.
-- Supports Upwork, Dice, Indeed, ZipRecruiter, and Robert Half.
+- Supports Upwork, Dice, Indeed, ZipRecruiter, Robert Half, and LinkedIn.
 - Lets you edit the extracted job snapshot before drafting.
 - Uses local saved context about you: profile, service offers, and project proof points.
 - Runs one Codex pass over the full portfolio context to choose strategy and generate the draft.
@@ -19,8 +19,8 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 - Persists draft jobs in SQLite so long Codex runs can be polled.
 - Logs applied jobs in SQLite, including one-time CSV migration from the old spreadsheet.
 - Provides a local dashboard for reviewing the SQLite application ledger.
-- Shows an already-applied indicator in the extension popup and supported job pages when the current URL is already in the ledger.
-- Keeps popup state in `chrome.storage.local`, so closing and reopening the popup resumes an active job.
+- Shows an already-applied indicator in the extension side panel and supported job pages when the current URL is already in the ledger.
+- Keeps side-panel state in `chrome.storage.local`, so closing and reopening the panel resumes an active job.
 - Provides a Chrome options page for configuring the local backend URL.
 - Drafts cover letters and Upwork proposals.
 - Generates professional PDF cover letters and can reveal the generated file in Finder.
@@ -29,15 +29,15 @@ This is a personal local tool shared as-is for people who want to use or adapt i
 ## Architecture
 
 ```text
-Chrome popup
+Chrome action side panel
   -> content script chooses a site adapter
   -> adapter extracts a normalized OpportunitySnapshot
   -> background service worker starts a draft job
   -> FastAPI backend persists and runs the job
   -> codex exec draft pass sees profile, all offers, all projects, and the opportunity
   -> SQLite stores request and draft JSON
-  -> popup polls job status and displays draft + audit trail
-  -> popup or platform confirmation logs applied jobs to SQLite
+  -> side panel polls job status and displays draft + audit trail
+  -> side panel or platform confirmation logs applied jobs to SQLite
 ```
 
 ## Requirements
@@ -78,10 +78,11 @@ The extension uses site adapters that convert each page into the same normalized
 | Indeed | Search result pages with the selected job detail panel. |
 | ZipRecruiter | Search result pages with the selected job detail pane. |
 | Robert Half | Search result pages with the selected job detail card. |
+| LinkedIn | Job search/detail pages with the selected job detail card and Easy Apply confirmation states. |
 
-The extension reads the job page you are viewing. On Dice search results, clicking the extension action opens a persistent side panel instead of the popup. The panel can open selected visible Easy Apply postings from the current page in new tabs, click each detail page's Easy Apply link, then advance the original results tab to the next page and refresh the list. The panel also has a `Next page` button for skipping a results page without opening anything. It does not crawl job boards. On Dice application wizard pages, it can click `Next` after the generated cover letter is attached and click `Submit` when Dice shows the review submit control.
+The extension reads the job page you are viewing. Clicking the extension action opens a persistent side panel. On Dice search results, the panel can open selected visible Easy Apply postings from the current page in new tabs, click each detail page's Easy Apply link, then advance the original results tab to the next page and refresh the list. The panel also has a `Next page` button for skipping a results page without opening anything. It does not crawl job boards. On Dice application wizard pages, the side panel shows all active cover-letter PDF runs, keeps completed PDF actions available, and the page automation can click `Next` after the generated cover letter is attached and click `Submit` when Dice shows the review submit control.
 
-Application logging is conservative. The popup provides a manual `Mark Applied` action for the current job snapshot. A separate content script also records a pending snapshot when a known platform submit control is clicked, then logs the application only after a platform-specific confirmation selector or confirmation URL is observed. Unknown application flows are not guessed from page-wide text.
+Application logging is conservative. The draft side panel provides a manual `Mark Applied` action for the current job snapshot. A separate content script also records a pending snapshot when a known platform submit control is clicked, then logs the application only after a platform-specific confirmation selector or confirmation URL is observed. Unknown application flows are not guessed from page-wide text.
 
 ## Configuration
 
@@ -246,7 +247,7 @@ http://127.0.0.1:8787/dashboard
 
 The dashboard supports search, source/date filters including `Sent today` and `Sent yesterday`, sortable columns, paginated rows, and top-level ledger totals.
 
-The extension checks the current job source URL against `/applications/lookup`. If the normalized URL is already in SQLite, the popup shows an already-applied status and supported job pages show a small already-applied badge. Immediately after a supported platform confirms a submitted application, the page badge confirms `Application recorded` for that submission instead of treating it as a prior application.
+The extension checks the current job source URL against `/applications/lookup`. If the normalized URL is already in SQLite, the side panel shows an already-applied status and supported job pages show a small already-applied badge. Immediately after a supported platform confirms a submitted application, the page badge confirms `Application recorded` for that submission instead of treating it as a prior application.
 
 ## PDF Cover Letters
 
@@ -258,9 +259,9 @@ The default resume source is the iCloud Downloads resume path shown in Configura
 
 After an application is logged with an attached cover letter draft, the backend moves the already-generated PDF from `JOB_APPLICATION_DRAFT_PDF_OUTPUT_DIR` into `JOB_APPLICATION_DRAFT_PDF_ARCHIVE_DIR`. If no PDF was generated for that draft, application logging still succeeds and no archive file is created.
 
-The popup enables `Generate PDF` after a cover letter draft succeeds. PDF generation is started through the extension background service worker and persisted in `chrome.storage.local`, so closing the popup does not own or clear the in-progress export state. After generation, `Finder` asks the local backend to reveal the generated PDF file. The backend only reveals files it generated under the configured PDF output directory.
+The draft side panel enables `Generate PDF` after a cover letter draft succeeds. PDF generation is started through the extension background service worker and persisted in `chrome.storage.local`, so closing the side panel does not own or clear the in-progress export state. After generation, `Finder` asks the local backend to reveal the generated PDF file. The backend only reveals files it generated under the configured PDF output directory.
 
-On Dice application wizard pages, the extension can automatically generate the cover letter PDF and expose `Open PDF` plus `Show in Finder` actions. Dice still owns its upload control; attach the generated PDF through Dice's file picker. After Dice shows the attached PDF in the cover-letter card, the assistant clicks `Next`, clicks `Submit` on the review step, records the confirmed application, and closes the submitted Dice tab.
+On Dice application wizard pages, the extension can automatically generate the cover letter PDF and reports each in-progress or completed run in the Dice side panel. Completed runs expose `Open PDF`, `Finder`, and regenerate actions from the side panel. After generation, the assistant attaches the PDF to Dice's cover-letter upload input. After Dice shows the attached PDF in the cover-letter card, the assistant clicks `Next`, clicks `Submit` on the review step, records the confirmed application, and closes the submitted Dice tab.
 
 ## Privacy And Data Retention
 

@@ -6,6 +6,7 @@
 
   const CONFIRMED_KEY = "jobApplicationLoggerConfirmed";
   const diceOpportunity = globalThis.JobApplicationDiceOpportunity;
+  const coverLetterRuns = globalThis.JobApplicationDiceCoverLetterRuns;
   const ledgerBadge = globalThis.JobApplicationLedgerBadge;
 
   const PLATFORM_RULES = [
@@ -81,6 +82,19 @@
       ],
       confirmationPathPatterns: [/\/application\/submitted\/?$/],
     },
+    {
+      source: "linkedin",
+      hosts: ["linkedin.com"],
+      submitSelectors: ['.jobs-easy-apply-modal__content button[data-live-test-easy-apply-submit-button]'],
+      submitText: "Submit application",
+      submitButtons: [{ selector: ".jobs-easy-apply-modal__content button", text: "Submit application" }],
+      confirmationSelectors: [
+        { selector: ".jobs-easy-apply-modal__content button", text: "Done" },
+        { selector: ".jobs-easy-apply-modal__content button", text: "Not now" },
+        { selector: "#jobs-apply-see-application-link" },
+        { selector: '.artdeco-inline-feedback--success[role="alert"]', textPrefix: "Applied" },
+      ],
+    },
   ];
 
   function clean(text) {
@@ -106,9 +120,13 @@
 
   function elementConfirms(rule) {
     return (rule.confirmationSelectors || []).some((item) => {
-      const element = document.querySelector(item.selector);
-      if (!item.text) return Boolean(element);
-      return clean(element?.textContent || "") === item.text;
+      return Array.from(document.querySelectorAll(item.selector)).some((element) => {
+        if (!item.text && !item.textPrefix && !item.textPattern) return true;
+        const text = clean(element?.textContent || "");
+        if (item.text) return text === item.text;
+        if (item.textPrefix) return text.startsWith(item.textPrefix);
+        return item.textPattern.test(text);
+      });
     });
   }
 
@@ -144,6 +162,26 @@
     const wizardMatch = location.pathname.match(/^\/job-applications\/([^/]+)\/wizard(?:\/success)?\/?$/);
     if (!wizardMatch) return null;
     return (await diceOpportunity.detailOpportunity(wizardMatch[1])) || diceOpportunity.wizardPageOpportunity(wizardMatch[1]);
+  }
+
+  function diceJobApplicationId() {
+    return location.pathname.match(/^\/job-applications\/([^/]+)\/wizard(?:\/success)?\/?$/)?.[1] || "";
+  }
+
+  function updateDiceRunConfirmed(rule, opportunity, response) {
+    const jobId = rule.source === "dice" ? diceJobApplicationId() : "";
+    if (!jobId || !coverLetterRuns?.upsert) return;
+    coverLetterRuns.upsert(jobId, {
+      application_id: response?.application?.id || "",
+      busy: false,
+      company: opportunity?.company || "",
+      message: response?.queued ? "Application submitted. Log queued." : "Application submitted.",
+      primary_label: "Regenerate PDF",
+      source_url: opportunity?.source_url || "",
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      title: opportunity?.title || "",
+    }).catch(() => {});
   }
 
   async function lookupApplication(sourceUrl) {
@@ -223,6 +261,7 @@
           scheduleLedgerBadgeRefresh(500, { force: true });
           return;
         }
+        updateDiceRunConfirmed(rule, opportunity, response);
         if (response.application) {
           setFreshLedgerBadge(response.application, "Application recorded", sourceUrl);
           return;
