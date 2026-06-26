@@ -1,28 +1,35 @@
 const els = {
   status: document.querySelector("#status"),
   refresh: document.querySelector("#refresh"),
-  dicePostingPicker: document.querySelector("#dice-posting-picker"),
-  dicePostingSummary: document.querySelector("#dice-posting-summary"),
-  dicePostingNextPage: document.querySelector("#dice-posting-next-page"),
-  dicePostingSelectAll: document.querySelector("#dice-posting-select-all"),
-  dicePostingList: document.querySelector("#dice-posting-list"),
-  dicePostingOpenSelected: document.querySelector("#dice-posting-open-selected"),
-  dicePostingStatus: document.querySelector("#dice-posting-status"),
-  diceCoverLetterRuns: document.querySelector("#dice-cover-letter-runs"),
-  diceCoverLetterSummary: document.querySelector("#dice-cover-letter-summary"),
-  diceCoverLetterList: document.querySelector("#dice-cover-letter-list"),
+  postingPicker: document.querySelector("#posting-picker"),
+  postingPickerTitle: document.querySelector("#posting-picker-title"),
+  postingSummary: document.querySelector("#posting-summary"),
+  postingNextPage: document.querySelector("#posting-next-page"),
+  postingSelectAll: document.querySelector("#posting-select-all"),
+  postingList: document.querySelector("#posting-list"),
+  postingOpenSelected: document.querySelector("#posting-open-selected"),
+  postingStatus: document.querySelector("#posting-status"),
+  coverLetterRunsSection: document.querySelector("#cover-letter-runs"),
+  coverLetterSummary: document.querySelector("#cover-letter-summary"),
+  coverLetterList: document.querySelector("#cover-letter-list"),
 };
 
-let diceResultsTabId = null;
+let postingResultsTabId = null;
 let apiBase = "";
 
-const coverLetterRuns = globalThis.JobApplicationDiceCoverLetterRuns;
+const coverLetterRuns = globalThis.JobApplicationCoverLetterRuns;
 const BUSY_RUN_STATUSES = new Set(["reading", "drafting", "pdf_generating", "attaching", "continuing", "submitting", "opening_finder"]);
 const DICE_WIZARD_SCRIPT_FILES = [
   "extractors/common.js",
   "platforms/dice_opportunity.js",
-  "ui/dice_cover_letter_runs.js",
+  "ui/cover_letter_runs.js",
   "dice_wizard_assistant.js",
+];
+const INDEED_SMARTAPPLY_SCRIPT_FILES = [
+  "extractors/common.js",
+  "platforms/indeed_opportunity.js",
+  "ui/cover_letter_runs.js",
+  "indeed_smartapply_assistant.js",
 ];
 
 function setStatus(text, state = "idle") {
@@ -43,6 +50,28 @@ function isDiceResultsUrl(value) {
   }
 }
 
+function isIndeedResultsUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname === "www.indeed.com" && url.pathname === "/jobs";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isLinkedInResultsUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname.includes("linkedin.com") && url.pathname === "/jobs/search/";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isPostingResultsUrl(value) {
+  return isDiceResultsUrl(value) || isIndeedResultsUrl(value) || isLinkedInResultsUrl(value);
+}
+
 function isDiceWizardUrl(value, jobId = "") {
   try {
     const url = new URL(value || "");
@@ -56,27 +85,36 @@ function isDiceWizardUrl(value, jobId = "") {
   }
 }
 
+function isIndeedSmartApplyUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname === "smartapply.indeed.com" && url.pathname.includes("/indeedapply/form/");
+  } catch (_error) {
+    return false;
+  }
+}
+
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) throw new Error("No active tab found.");
   return tab;
 }
 
-async function diceResultsTab() {
-  if (diceResultsTabId) {
+async function postingResultsTab() {
+  if (postingResultsTabId) {
     try {
-      const tab = await chrome.tabs.get(diceResultsTabId);
-      if (tab?.id && isDiceResultsUrl(tab.url || "")) return tab;
+      const tab = await chrome.tabs.get(postingResultsTabId);
+      if (tab?.id && isPostingResultsUrl(tab.url || "")) return tab;
     } catch (_error) {
-      diceResultsTabId = null;
+      postingResultsTabId = null;
     }
   }
 
   const tab = await activeTab();
-  if (!isDiceResultsUrl(tab.url || "")) {
-    throw new Error("Open a Dice results page to use this panel.");
+  if (!isPostingResultsUrl(tab.url || "")) {
+    throw new Error("Open a Dice, Indeed, or LinkedIn results page to use this panel.");
   }
-  diceResultsTabId = tab.id;
+  postingResultsTabId = tab.id;
   return tab;
 }
 
@@ -96,8 +134,24 @@ function runIsBusy(run) {
   return Boolean(run?.busy) || BUSY_RUN_STATUSES.has(run?.status || "");
 }
 
+function sourceFromJobId(jobId) {
+  return String(jobId || "").startsWith("indeed:") ? "indeed" : "dice";
+}
+
+function runSource(run) {
+  return run?.source || sourceFromJobId(run?.job_id);
+}
+
+function sourceLabel(source) {
+  return source === "indeed" ? "Indeed" : "Dice";
+}
+
+function runSourceLabel(run) {
+  return sourceLabel(runSource(run));
+}
+
 function runLabel(run) {
-  return run?.title || "Dice application";
+  return run?.title || `${runSourceLabel(run)} application`;
 }
 
 function runMeta(run) {
@@ -114,6 +168,9 @@ function pdfUrl(pdf, baseUrl) {
 }
 
 function runWizardTab(tabs, run) {
+  if (runSource(run) === "indeed") {
+    return tabs.find((tab) => tab?.id && isIndeedSmartApplyUrl(tab.url || "")) || null;
+  }
   return tabs.find((tab) => tab?.id && isDiceWizardUrl(tab.url || "", run?.job_id || "")) || null;
 }
 
@@ -124,9 +181,10 @@ async function lookupApplicationForRun(run) {
   return response.application || null;
 }
 
-async function ensureWizardAssistant(tab) {
+async function ensureWizardAssistant(tab, source = "dice") {
   if (!tab?.id) return;
-  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: DICE_WIZARD_SCRIPT_FILES }).catch(() => {});
+  const files = source === "indeed" ? INDEED_SMARTAPPLY_SCRIPT_FILES : DICE_WIZARD_SCRIPT_FILES;
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files }).catch(() => {});
 }
 
 async function reconcileCoverLetterRun(run, tabs) {
@@ -147,13 +205,13 @@ async function reconcileCoverLetterRun(run, tabs) {
 
   const tab = runWizardTab(tabs, run);
   if (tab) {
-    await ensureWizardAssistant(tab);
+    await ensureWizardAssistant(tab, run?.source || "dice");
     return false;
   }
 
   await coverLetterRuns.upsert(run.job_id, {
     busy: false,
-    message: "Dice tab closed before this run finished.",
+    message: `${runSourceLabel(run)} tab closed before this run finished.`,
     primary_label: "Try again",
     status: "needs_attention",
   });
@@ -171,12 +229,12 @@ async function reconcileCoverLetterRuns(runs) {
 async function renderCoverLetterRuns({ reconcile = false } = {}) {
   let runs = await coverLetterRuns.list();
   if (reconcile) runs = await reconcileCoverLetterRuns(runs);
-  els.diceCoverLetterRuns.hidden = runs.length === 0;
-  els.diceCoverLetterList.textContent = "";
+  els.coverLetterRunsSection.hidden = runs.length === 0;
+  els.coverLetterList.textContent = "";
   if (!runs.length) return runs;
 
   const activeCount = runs.filter(runIsBusy).length;
-  els.diceCoverLetterSummary.textContent = activeCount
+  els.coverLetterSummary.textContent = activeCount
     ? `${activeCount} running, ${runs.length} total`
     : `${runs.length} recent PDF ${runs.length === 1 ? "run" : "runs"}`;
 
@@ -196,7 +254,7 @@ async function renderCoverLetterRuns({ reconcile = false } = {}) {
 
     const status = document.createElement("p");
     status.className = "cover-letter-run-status";
-    status.textContent = run.message || "Waiting for the Dice wizard.";
+    status.textContent = run.message || `Waiting for the ${runSourceLabel(run)} application workflow.`;
 
     const progress = document.createElement("div");
     progress.className = "cover-letter-run-progress";
@@ -234,33 +292,47 @@ async function renderCoverLetterRuns({ reconcile = false } = {}) {
       start.dataset.jobId = run.job_id || "";
       start.textContent = run.primary_label || (run.status === "failed" ? "Try again" : "Regenerate PDF");
       actions.append(start);
+
+      const dismiss = document.createElement("button");
+      dismiss.type = "button";
+      dismiss.dataset.action = "dismiss-cover-letter-run";
+      dismiss.dataset.jobId = run.job_id || "";
+      dismiss.textContent = "Dismiss";
+      actions.append(dismiss);
     }
 
     row.append(title, status, progress, actions);
-    els.diceCoverLetterList.append(row);
+    els.coverLetterList.append(row);
   });
   return runs;
 }
 
-async function findDiceWizardTab(jobId) {
+async function findApplicationTab(jobId, source = "") {
   const tabs = await chrome.tabs.query({});
+  const resolvedSource = source || sourceFromJobId(jobId);
+  if (resolvedSource === "indeed") {
+    return tabs.find((tab) => tab?.id && isIndeedSmartApplyUrl(tab.url || "")) || null;
+  }
   return tabs.find((tab) => tab?.id && isDiceWizardUrl(tab.url || "", jobId)) || null;
 }
 
-async function sendStartCoverLetterMessage(tabId, force) {
-  const response = await chrome.tabs.sendMessage(tabId, { type: "DICE_COVER_LETTER_START", force });
+async function sendStartCoverLetterMessage(tabId, force, source = "dice") {
+  const type = source === "indeed" ? "INDEED_COVER_LETTER_START" : "DICE_COVER_LETTER_START";
+  const response = await chrome.tabs.sendMessage(tabId, { type, force });
   if (!response?.ok) throw new Error(response?.error || "Could not start the cover letter PDF.");
   return response;
 }
 
 async function startCoverLetterFromSidebar(jobId) {
-  const tab = await findDiceWizardTab(jobId);
-  if (!tab?.id) throw new Error("Open the Dice wizard tab to regenerate this PDF.");
+  const source = sourceFromJobId(jobId);
+  const tab = await findApplicationTab(jobId, source);
+  if (!tab?.id) throw new Error(`Open the ${sourceLabel(source)} application tab to regenerate this PDF.`);
   try {
-    return await sendStartCoverLetterMessage(tab.id, true);
+    return await sendStartCoverLetterMessage(tab.id, true, source);
   } catch (_error) {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: DICE_WIZARD_SCRIPT_FILES });
-    return await sendStartCoverLetterMessage(tab.id, true);
+    const files = source === "indeed" ? INDEED_SMARTAPPLY_SCRIPT_FILES : DICE_WIZARD_SCRIPT_FILES;
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files });
+    return await sendStartCoverLetterMessage(tab.id, true, source);
   }
 }
 
@@ -274,15 +346,15 @@ async function revealPdfFromSidebar({ jobId, draftId }) {
   if (!response?.ok || !response.opened) throw new Error(response?.error || "Could not open the generated PDF in Finder.");
   await coverLetterRuns.upsert(jobId, {
     busy: false,
-    message: "Finder opened. Select the generated PDF in Dice's upload box.",
+    message: "Finder opened. Select the generated PDF in the application upload box.",
     primary_label: "Regenerate PDF",
     status: "ready",
   });
 }
 
-const postingPicker = globalThis.JobApplicationDicePostingPicker.create({
+const postingPicker = globalThis.JobApplicationPostingPicker.create({
   els,
-  activeTab: diceResultsTab,
+  activeTab: postingResultsTab,
   injectContentScripts,
   setStatus,
   sleep,
@@ -291,15 +363,15 @@ const postingPicker = globalThis.JobApplicationDicePostingPicker.create({
 function setBusy(isBusy) {
   els.refresh.disabled = isBusy;
   if (isBusy) {
-    els.dicePostingNextPage.disabled = true;
-    els.dicePostingOpenSelected.disabled = true;
-    els.dicePostingSelectAll.disabled = true;
+    els.postingNextPage.disabled = true;
+    els.postingOpenSelected.disabled = true;
+    els.postingSelectAll.disabled = true;
   }
 }
 
 postingPicker.attachEvents();
 
-els.diceCoverLetterList.addEventListener("click", async (event) => {
+els.coverLetterList.addEventListener("click", async (event) => {
   const button = event.target instanceof Element ? event.target.closest("button[data-action]") : null;
   if (!(button instanceof HTMLButtonElement)) return;
   const action = button.dataset.action || "";
@@ -315,6 +387,9 @@ els.diceCoverLetterList.addEventListener("click", async (event) => {
       await startCoverLetterFromSidebar(jobId);
     } else if (action === "reveal-pdf") {
       await revealPdfFromSidebar({ jobId, draftId: button.dataset.draftId || "" });
+    } else if (action === "dismiss-cover-letter-run") {
+      await coverLetterRuns.remove(jobId);
+      setStatus("Removed cover letter PDF run.");
     }
     await renderCoverLetterRuns({ reconcile: true });
   } catch (error) {
@@ -337,17 +412,17 @@ els.refresh.addEventListener("click", async () => {
     setBusy(true);
     await renderCoverLetterRuns();
     const tab = await activeTab();
-    if (!isDiceResultsUrl(tab.url || "")) {
+    if (!isPostingResultsUrl(tab.url || "")) {
       postingPicker.clear();
-      setStatus("Dice cover letter PDFs ready.");
+      setStatus("Cover letter PDFs ready.");
       return;
     }
-    els.dicePostingStatus.textContent = "Refreshing...";
+    els.postingStatus.textContent = "Refreshing...";
     await postingPicker.refresh();
-    els.dicePostingStatus.textContent = `${postingPicker.count()} Easy Apply on this page.`;
-    setStatus("Dice results ready.");
+    els.postingStatus.textContent = `${postingPicker.count()} apply-enabled posting${postingPicker.count() === 1 ? "" : "s"} on this page.`;
+    setStatus("Results ready.");
   } catch (error) {
-    els.dicePostingStatus.textContent = error.message || "Could not refresh Dice postings.";
+    els.postingStatus.textContent = error.message || "Could not refresh postings.";
     setStatus(error.message, "error");
   } finally {
     setBusy(false);
@@ -359,17 +434,17 @@ async function initializeSidePanel() {
     setBusy(true);
     const runs = await renderCoverLetterRuns({ reconcile: true });
     const tab = await activeTab();
-    if (!isDiceResultsUrl(tab.url || "")) {
+    if (!isPostingResultsUrl(tab.url || "")) {
       postingPicker.clear();
-      setStatus(runs.length ? "Dice cover letter PDFs ready." : "Open a Dice results page to list postings.");
+      setStatus(runs.length ? "Cover letter PDFs ready." : "Open a Dice, Indeed, or LinkedIn results page to list postings.");
       return;
     }
     await postingPicker.refresh();
-    els.dicePostingStatus.textContent = `${postingPicker.count()} Easy Apply on this page.`;
-    setStatus("Dice results ready.");
+    els.postingStatus.textContent = `${postingPicker.count()} apply-enabled posting${postingPicker.count() === 1 ? "" : "s"} on this page.`;
+    setStatus("Results ready.");
   } catch (error) {
     postingPicker.clear();
-    els.dicePostingStatus.textContent = error.message || "Could not read Dice postings.";
+    els.postingStatus.textContent = error.message || "Could not read postings.";
     setStatus(error.message, "error");
   } finally {
     setBusy(false);

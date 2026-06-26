@@ -16,18 +16,20 @@ def test_manifest_loads_extraction_modules_before_content_script() -> None:
     manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
     scripts = manifest["content_scripts"][0]["js"]
 
-    assert scripts[:10] == [
+    assert scripts[:9] == [
         "extractors/common.js",
         "platforms/dice_opportunity.js",
+        "platforms/indeed_opportunity.js",
+        "platforms/linkedin_opportunity.js",
         "extractors/upwork.js",
         "extractors/dice.js",
         "extractors/indeed.js",
         "extractors/ziprecruiter.js",
         "extractors/roberthalf.js",
-        "extractors/linkedin.js",
-        "ui/dice_cover_letter_runs.js",
-        "content_script.js",
     ]
+    assert scripts[9:11] == ["extractors/linkedin.js", "ui/cover_letter_runs.js"]
+    assert scripts.index("content_script.js") == 11
+    assert scripts.index("linkedin_easy_apply_assistant.js") > scripts.index("application_logger.js")
 
 
 def test_content_script_is_only_registry_and_message_bridge() -> None:
@@ -36,13 +38,22 @@ def test_content_script_is_only_registry_and_message_bridge() -> None:
     assert "JobApplicationExtractors" in content_script
     assert "JobApplicationExtractorCommon" in content_script
     assert "JobApplicationDiceOpportunity" in content_script
+    assert "JobApplicationIndeedOpportunity" in content_script
+    assert "JobApplicationLinkedInOpportunity" in content_script
     assert "globalThis.__applicationDraftAssistantExtract = extractOpportunity" in content_script
-    assert "function listDicePostings" in content_script
-    assert "globalThis.JobApplicationDiceOpportunity?.searchResultPostings?.() || []" in content_script
-    assert "globalThis.__applicationDraftAssistantListPostings = listDicePostings" in content_script
+    assert "async function platformPostings" in content_script
+    assert "function listPlatformPostings" in content_script
+    assert "adapter?.listSearchResultPostings || adapter?.searchResultPostings" in content_script
+    assert "await platformPostings(globalThis.JobApplicationDiceOpportunity)" in content_script
+    assert "await platformPostings(globalThis.JobApplicationIndeedOpportunity)" in content_script
+    assert "await platformPostings(globalThis.JobApplicationLinkedInOpportunity)" in content_script
+    assert "globalThis.__applicationDraftAssistantListPostings = listPlatformPostings" in content_script
     assert "Dice Easy Apply support is unavailable on this page." in content_script
+    assert "Indeed Apply with Indeed support is unavailable on this page." in content_script
+    assert "LinkedIn Easy Apply support is unavailable on this page." in content_script
+    assert "Platform apply support is unavailable on this page." in content_script
     assert "APPLICATION_DRAFT_LIST_POSTINGS" in content_script
-    assert "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY" in content_script
+    assert "APPLICATION_DRAFT_CLICK_APPLY_CONTROL" in content_script
     assert "APPLICATION_DRAFT_EXTRACT" in content_script
     assert "data-testid" not in content_script
     assert "jobsearch-" not in content_script
@@ -60,6 +71,8 @@ def test_extraction_modules_keep_weak_inference_patterns_out() -> None:
             read("extractors/roberthalf.js"),
             read("extractors/linkedin.js"),
             read("platforms/dice_opportunity.js"),
+            read("platforms/indeed_opportunity.js"),
+            read("platforms/linkedin_opportunity.js"),
         ]
     )
 
@@ -133,6 +146,29 @@ def test_dice_extractor_uses_shared_declared_contracts() -> None:
     assert "Dice skills list was not found" in dice_extractor
 
 
+def test_indeed_helper_uses_apply_with_indeed_and_smartapply_contracts() -> None:
+    indeed_helper = read("platforms/indeed_opportunity.js")
+    indeed_extractor = read("extractors/indeed.js")
+    manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
+    scripts = manifest["content_scripts"][0]["js"]
+
+    assert scripts.index("platforms/indeed_opportunity.js") < scripts.index("extractors/indeed.js")
+    assert scripts.index("platforms/indeed_opportunity.js") < scripts.index("content_script.js")
+    assert "JobApplicationIndeedOpportunity" in indeed_helper
+    assert "function isIndeedResultsUrl" in indeed_helper
+    assert 'url.pathname === "/jobs"' in indeed_helper
+    assert 'a[data-jk][aria-label^="full details of "]' in indeed_helper
+    assert 'exactDescendantText(card, "Easily apply")' in indeed_helper
+    assert 'button[aria-label^="Apply with Indeed"]' in indeed_helper
+    assert "function smartApplyJobKey" in indeed_helper
+    assert 'providerData()["mosaic-provider-resume-fields-mismatch"]' in indeed_helper
+    assert 'new URL("/viewjob", "https://www.indeed.com")' in indeed_helper
+    assert '[data-testid="ia-JobHeader-headerContainer"]' in indeed_helper
+    assert '[data-testid="JobInfoCard-wrapper"]' in indeed_helper
+    assert "Indeed smartapply job key was not found" in indeed_helper
+    assert "indeed?.smartApplyOpportunity?.()" in indeed_extractor
+
+
 def test_upwork_extractor_handles_apply_detail_and_submitted_proposal_pages() -> None:
     upwork = read("extractors/upwork.js")
 
@@ -190,13 +226,65 @@ def test_other_platform_extractors_use_declared_detail_contracts() -> None:
 
 def test_linkedin_extractor_uses_job_ids_and_easy_apply_contracts() -> None:
     linkedin = read("extractors/linkedin.js")
+    linkedin_helper = read("platforms/linkedin_opportunity.js")
+    linkedin_assistant = read("linkedin_easy_apply_assistant.js")
     manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
     scripts = manifest["content_scripts"][0]["js"]
 
     assert "https://www.linkedin.com/*" in manifest["host_permissions"]
     assert "https://*.linkedin.com/*" in manifest["host_permissions"]
     assert "https://www.linkedin.com/*" in manifest["content_scripts"][0]["matches"]
+    assert scripts.index("platforms/linkedin_opportunity.js") < scripts.index("extractors/linkedin.js")
     assert scripts.index("extractors/linkedin.js") < scripts.index("content_script.js")
+    assert scripts.index("linkedin_easy_apply_assistant.js") > scripts.index("application_logger.js")
+
+    assert "JobApplicationLinkedInOpportunity" in linkedin_helper
+    assert "jobApplicationLinkedInEasyApplyAutoRun" in linkedin_helper
+    assert "function isLinkedInResultsUrl" in linkedin_helper
+    assert 'url.pathname === "/jobs/search/"' in linkedin_helper
+    assert "function sourceUrlFromJobId" in linkedin_helper
+    assert "`https://www.linkedin.com/jobs/view/${jobId}/`" in linkedin_helper
+    assert 'li[data-occludable-job-id] [data-job-id]' in linkedin_helper
+    assert 'exactDescendantText(card, "Easy Apply")' in linkedin_helper
+    assert 'a[href*="/jobs/view/"]' in linkedin_helper
+    assert ".artdeco-entity-lockup__subtitle span" in linkedin_helper
+    assert ".artdeco-entity-lockup__caption span" in linkedin_helper
+    assert "function searchResultsScroller" in linkedin_helper
+    assert "function listSearchResultPostings" in linkedin_helper
+    assert "scroller.scrollTop + Math.max(400, scroller.clientHeight * 0.85)" in linkedin_helper
+    assert "mergePostings(postings, searchResultPostings())" in linkedin_helper
+    assert "function clickEasyApply" in linkedin_helper
+    assert "function enableAutoRunForEasyApplyClicks" in linkedin_helper
+    assert "button[data-live-test-job-apply-button][data-job-id]" in linkedin_helper
+    assert 'a[aria-label="Easy Apply to this job"]' in linkedin_helper
+    assert "Easy Apply to .+ at .+" in linkedin_helper
+    assert 'href.includes("/apply/?openSDUIApplyFlow=true")' in linkedin_helper
+    assert 'sessionStorage.setItem(AUTO_RUN_KEY, "true")' in linkedin_helper
+    assert 'source: "linkedin"' in linkedin_helper
+    assert "auto_run_key: AUTO_RUN_KEY" in linkedin_helper
+    assert "activate_after_navigation: true" in linkedin_helper
+    assert "reload_after_navigation: false" in linkedin_helper
+
+    assert "jobApplicationLinkedInEasyApplyAutoRun" in linkedin_assistant
+    assert "AUTO_RUN_STARTED_AT_KEY" in linkedin_assistant
+    assert "AUTO_RUN_TIMEOUT_MS = 5 * 60 * 1000" in linkedin_assistant
+    assert "function clearAutoRun" in linkedin_assistant
+    assert "function modalRoot" in linkedin_assistant
+    assert 'data-test-modal-id="easy-apply-modal"' in linkedin_assistant
+    assert "data-live-test-easy-apply-next-button" in linkedin_assistant
+    assert "data-live-test-easy-apply-review-button" in linkedin_assistant
+    assert "data-easy-apply-review-button" in linkedin_assistant
+    assert "data-live-test-easy-apply-submit-button" in linkedin_assistant
+    assert "function markManualIfNeeded" in linkedin_assistant
+    assert 'root.dataset.jobApplicationLinkedInManualAttention = "true"' in linkedin_assistant
+    assert "KNOWN_STEP_HEADINGS" in linkedin_assistant
+    assert '"Review your application"' in linkedin_assistant
+    assert 'root.querySelectorAll("h1, h2, h3, h4, h5, h6, legend, div, span, label, p")' in linkedin_assistant
+    assert "function stepSignature" in linkedin_assistant
+    assert "if (!root) {\n      return false;\n    }" in linkedin_assistant
+    assert 'clearAutoRun();' in linkedin_assistant
+    assert 'clickOnce(continueButton, "jobApplicationLinkedInContinueClicked", stepSignature(root))' in linkedin_assistant
+
     assert 'id: "linkedin"' in linkedin
     assert 'location.hostname.includes("linkedin.com")' in linkedin
     assert 'searchParams.get("currentJobId")' in linkedin

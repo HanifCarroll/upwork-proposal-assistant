@@ -10,7 +10,8 @@
   const LINKEDIN_RECENT_SUBMIT_MS = 30000;
   const LINKEDIN_AUTO_SUBMITTED_AT_KEY = "jobApplicationLinkedInAutoSubmittedAt";
   const diceOpportunity = globalThis.JobApplicationDiceOpportunity;
-  const coverLetterRuns = globalThis.JobApplicationDiceCoverLetterRuns;
+  const indeedOpportunity = globalThis.JobApplicationIndeedOpportunity;
+  const coverLetterRuns = globalThis.JobApplicationCoverLetterRuns;
   const ledgerBadge = globalThis.JobApplicationLedgerBadge;
 
   const PLATFORM_RULES = [
@@ -40,12 +41,14 @@
     {
       source: "indeed",
       hosts: ["indeed.com"],
-      submitSelectors: ['button[data-testid="indeed-apply-submit-button"]', 'button[data-testid="ia-continueButton"]'],
+      submitSelectors: ['button[data-testid="submit-application-button"]', 'button[data-testid="indeed-apply-submit-button"]', 'button[data-testid="ia-continueButton"]'],
+      captureOpportunity: indeedSmartApplyOpportunity,
       confirmationSelectors: [
         { selector: '[data-testid="indeed-apply-confirmation"]', text: "Application submitted" },
         { selector: '[data-testid="ia-ApplicationSubmitted"]', text: "Application submitted" },
+        { selector: "body", textPattern: /Application submitted|Your application was submitted/ },
       ],
-      confirmationPathPatterns: [/\/apply\/confirm\/?$/],
+      confirmationPathPatterns: [/\/apply\/confirm\/?$/, /\/indeedapply\/.*(?:post-apply|success|confirmation)/],
     },
     {
       source: "ziprecruiter",
@@ -241,12 +244,25 @@
     return (await diceOpportunity.detailOpportunity(wizardMatch[1])) || diceOpportunity.wizardPageOpportunity(wizardMatch[1]);
   }
 
+  async function indeedSmartApplyOpportunity() {
+    return indeedOpportunity?.smartApplyOpportunity?.() || null;
+  }
+
   function diceJobApplicationId() {
     return location.pathname.match(/^\/job-applications\/([^/]+)\/wizard(?:\/success)?\/?$/)?.[1] || "";
   }
 
-  function updateDiceRunConfirmed(rule, opportunity, response) {
-    const jobId = rule.source === "dice" ? diceJobApplicationId() : "";
+  function coverLetterRunId(rule) {
+    if (rule.source === "dice") return diceJobApplicationId();
+    if (rule.source === "indeed") {
+      const key = indeedOpportunity?.smartApplyJobKey?.() || "";
+      return key ? `indeed:${key}` : "";
+    }
+    return "";
+  }
+
+  function updateCoverLetterRunConfirmed(rule, opportunity, response) {
+    const jobId = coverLetterRunId(rule);
     if (!jobId || !coverLetterRuns?.upsert) return;
     coverLetterRuns.upsert(jobId, {
       application_id: response?.application?.id || "",
@@ -338,9 +354,9 @@
           scheduleLedgerBadgeRefresh(500, { force: true });
           return;
         }
-        updateDiceRunConfirmed(rule, opportunity, response);
+        updateCoverLetterRunConfirmed(rule, opportunity, response);
         if (response.application) {
-          setFreshLedgerBadge(response.application, "Application recorded", sourceUrl);
+          setFreshLedgerBadge(response.application, "Submission recorded", sourceUrl);
           return;
         }
         if (response.queued && opportunity) {

@@ -4,16 +4,46 @@
   const common = globalThis.JobApplicationExtractorCommon;
   const registry = globalThis.JobApplicationExtractors;
 
-  function listDicePostings() {
-    return globalThis.JobApplicationDiceOpportunity?.searchResultPostings?.() || [];
+  async function platformPostings(adapter) {
+    const list = adapter?.listSearchResultPostings || adapter?.searchResultPostings;
+    if (typeof list !== "function") return [];
+    const postings = await list.call(adapter);
+    return Array.isArray(postings) ? postings : [];
   }
 
-  async function clickDiceEasyApply() {
+  async function listPlatformPostings() {
+    return [
+      ...(await platformPostings(globalThis.JobApplicationDiceOpportunity)),
+      ...(await platformPostings(globalThis.JobApplicationIndeedOpportunity)),
+      ...(await platformPostings(globalThis.JobApplicationLinkedInOpportunity)),
+    ];
+  }
+
+  async function clickDiceApplyControl() {
     const dice = globalThis.JobApplicationDiceOpportunity;
     if (typeof dice?.clickDetailEasyApply !== "function") {
       throw new Error("Dice Easy Apply support is unavailable on this page.");
     }
     return dice.clickDetailEasyApply();
+  }
+
+  async function clickPlatformApplyControl() {
+    if (location.hostname.includes("dice.com")) return clickDiceApplyControl();
+    if (location.hostname.includes("indeed.com")) {
+      const indeed = globalThis.JobApplicationIndeedOpportunity;
+      if (typeof indeed?.clickApplyWithIndeed !== "function") {
+        throw new Error("Indeed Apply with Indeed support is unavailable on this page.");
+      }
+      return indeed.clickApplyWithIndeed();
+    }
+    if (location.hostname.includes("linkedin.com")) {
+      const linkedin = globalThis.JobApplicationLinkedInOpportunity;
+      if (typeof linkedin?.clickEasyApply !== "function") {
+        throw new Error("LinkedIn Easy Apply support is unavailable on this page.");
+      }
+      return linkedin.clickEasyApply();
+    }
+    throw new Error("Platform apply support is unavailable on this page.");
   }
 
   async function extractOpportunity() {
@@ -33,7 +63,7 @@
   }
 
   globalThis.__applicationDraftAssistantExtract = extractOpportunity;
-  globalThis.__applicationDraftAssistantListPostings = listDicePostings;
+  globalThis.__applicationDraftAssistantListPostings = listPlatformPostings;
 
   if (globalThis.chrome?.runtime?.onMessage && !globalThis.__applicationDraftAssistantMessageListenerInstalled) {
     globalThis.__applicationDraftAssistantMessageListenerInstalled = true;
@@ -44,8 +74,8 @@
           .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
         return true;
       }
-      if (message?.type === "APPLICATION_DRAFT_CLICK_DICE_EASY_APPLY") {
-        clickDiceEasyApply()
+      if (message?.type === "APPLICATION_DRAFT_CLICK_APPLY_CONTROL") {
+        clickPlatformApplyControl()
           .then((result) => sendResponse({ ok: true, ...result }))
           .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
         return true;

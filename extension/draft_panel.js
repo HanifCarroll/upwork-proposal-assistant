@@ -40,13 +40,14 @@ const els = {
   progressBar: document.querySelector("#progress-bar"),
   stage: document.querySelector("#stage"),
   elapsed: document.querySelector("#elapsed"),
-  dicePostingPicker: document.querySelector("#dice-posting-picker"),
-  dicePostingSummary: document.querySelector("#dice-posting-summary"),
-  dicePostingNextPage: document.querySelector("#dice-posting-next-page"),
-  dicePostingSelectAll: document.querySelector("#dice-posting-select-all"),
-  dicePostingList: document.querySelector("#dice-posting-list"),
-  dicePostingOpenSelected: document.querySelector("#dice-posting-open-selected"),
-  dicePostingStatus: document.querySelector("#dice-posting-status"),
+  postingPicker: document.querySelector("#posting-picker"),
+  postingPickerTitle: document.querySelector("#posting-picker-title"),
+  postingSummary: document.querySelector("#posting-summary"),
+  postingNextPage: document.querySelector("#posting-next-page"),
+  postingSelectAll: document.querySelector("#posting-select-all"),
+  postingList: document.querySelector("#posting-list"),
+  postingOpenSelected: document.querySelector("#posting-open-selected"),
+  postingStatus: document.querySelector("#posting-status"),
 };
 
 let currentState = null;
@@ -263,7 +264,7 @@ const draftForm = globalThis.JobApplicationDraftForm.create({
 });
 const { fillOpportunity, fillRequest, readRequest, setSourceMode, syncSourceFields } = draftForm;
 
-const dicePostingPicker = globalThis.JobApplicationDicePostingPicker.create({
+const postingPicker = globalThis.JobApplicationPostingPicker.create({
   els,
   activeTab,
   injectContentScripts,
@@ -297,12 +298,12 @@ async function executeExtractor(tabId) {
   return response.opportunity;
 }
 
-function clearDicePostingPicker() {
-  dicePostingPicker.clear();
+function clearPostingPicker() {
+  postingPicker.clear();
 }
 
-async function refreshDicePostingPicker() {
-  await dicePostingPicker.refresh();
+async function refreshPostingPicker() {
+  await postingPicker.refresh();
 }
 
 async function captureActivePage({ statusText = "Review the current page snapshot before drafting." } = {}) {
@@ -690,7 +691,7 @@ els.copy.addEventListener("click", async () => {
   setStatus("Copied draft.");
 });
 
-dicePostingPicker.attachEvents();
+postingPicker.attachEvents();
 
 els.settings.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
@@ -737,7 +738,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 async function initializePopup() {
   try {
     setStatus("Reading active page...");
-    await refreshDicePostingPicker().catch(() => clearDicePostingPicker());
+    await refreshPostingPicker().catch(() => clearPostingPicker());
     const opportunity = await extractProject();
     const state = await loadDraftState();
     if (state && samePageUrl(stateSourceUrl(state), opportunitySourceUrl(opportunity))) {
@@ -752,7 +753,7 @@ async function initializePopup() {
     await persistEditableSnapshot();
     setStatus("Review the current page snapshot before drafting.");
   } catch (error) {
-    await refreshDicePostingPicker().catch(() => clearDicePostingPicker());
+    await refreshPostingPicker().catch(() => clearPostingPicker());
     const restored = await restoreDraftState();
     if (restored) {
       setStatus(`Showing saved snapshot. ${error.message || "Active page could not be read."}`, "error");

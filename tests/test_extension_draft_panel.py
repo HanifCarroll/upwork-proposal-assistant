@@ -20,7 +20,7 @@ def test_draft_panel_html_loads_renamed_orchestrator_and_ui_modules() -> None:
         assert 'src="ui/draft_form.js"' in html
         assert 'src="ui/application_status.js"' in html
         assert 'src="ui/pdf_controls.js"' in html
-        assert 'src="ui/dice_posting_picker.js"' in html
+        assert 'src="ui/posting_picker.js"' in html
         assert 'src="draft_panel.js"' in html
         assert 'src="popup.js"' not in html
 
@@ -80,9 +80,14 @@ def test_draft_panel_injects_ordered_content_script_bundle() -> None:
     assert "CONTENT_SCRIPT_FILES" in content_scripts
     assert '"extractors/common.js"' in content_scripts
     assert '"platforms/dice_opportunity.js"' in content_scripts
+    assert '"platforms/linkedin_opportunity.js"' in content_scripts
     assert '"extractors/upwork.js"' in content_scripts
     assert '"extractors/linkedin.js"' in content_scripts
     assert '"content_script.js"' in content_scripts
+    assert "LINKEDIN_EASY_APPLY_SCRIPT_FILES" in content_scripts
+    assert '"linkedin_easy_apply_assistant.js"' in content_scripts
+    assert "function injectLinkedInEasyApply" in content_scripts
+    assert "function setSessionStorage" in content_scripts
     assert "chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPT_FILES })" in content_scripts
     assert "globalThis.JobApplicationContentScripts.inject(tabId)" in draft_panel
     assert 'files: ["content_script.js"]' not in draft_panel

@@ -1,9 +1,19 @@
 (() => {
-  const RUNS_KEY = "jobApplicationDiceCoverLetterRuns";
+  const RUNS_KEY = "jobApplicationCoverLetterRuns";
+  const LEGACY_RUNS_KEY = "jobApplicationDiceCoverLetterRuns";
+  let migratedLegacyRuns = false;
 
   async function runMap() {
-    const stored = await chrome.storage.local.get(RUNS_KEY);
-    const value = stored[RUNS_KEY];
+    const stored = await chrome.storage.local.get([RUNS_KEY, LEGACY_RUNS_KEY]);
+    let value = stored[RUNS_KEY];
+    if (!migratedLegacyRuns && (!value || typeof value !== "object" || Array.isArray(value))) {
+      const legacy = stored[LEGACY_RUNS_KEY];
+      if (legacy && typeof legacy === "object" && !Array.isArray(legacy)) {
+        value = legacy;
+        await chrome.storage.local.set({ [RUNS_KEY]: legacy });
+      }
+    }
+    migratedLegacyRuns = true;
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   }
 
@@ -48,7 +58,8 @@
     await chrome.storage.local.set({ [RUNS_KEY]: runs });
   }
 
-  globalThis.JobApplicationDiceCoverLetterRuns = {
+  globalThis.JobApplicationCoverLetterRuns = {
+    legacyKey: LEGACY_RUNS_KEY,
     key: RUNS_KEY,
     list,
     remove,

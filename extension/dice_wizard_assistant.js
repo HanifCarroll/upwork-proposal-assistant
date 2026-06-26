@@ -10,7 +10,7 @@
   const AUTO_SUBMIT_KEY = "jobApplicationDiceSubmitAutoClicked";
   const COVER_LETTER_SELECTOR = '[data-testid="cover-letter"]';
   const diceOpportunity = globalThis.JobApplicationDiceOpportunity;
-  const coverLetterRuns = globalThis.JobApplicationDiceCoverLetterRuns;
+  const coverLetterRuns = globalThis.JobApplicationCoverLetterRuns;
 
   function clean(text) {
     return (text || "").replace(/\s+/g, " ").trim();

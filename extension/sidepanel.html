@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dice Easy Apply</title>
+    <title>Apply-enabled jobs</title>
     <link rel="stylesheet" href="popup.css" />
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
@@ -11,43 +11,43 @@
     <main class="shell sidepanel-shell">
       <header class="topbar">
         <div>
-          <h1>Dice Easy Apply</h1>
-          <p id="status">Reading Dice results.</p>
+          <h1>Apply-enabled jobs</h1>
+          <p id="status">Reading results.</p>
         </div>
         <button id="refresh" type="button">Refresh</button>
       </header>
 
-      <section id="dice-posting-picker" class="posting-picker">
+      <section id="posting-picker" class="posting-picker">
         <div class="posting-picker-header">
           <div>
-            <h2>Easy Apply postings</h2>
-            <p id="dice-posting-summary">0 Easy Apply</p>
+            <h2 id="posting-picker-title">Apply-enabled postings</h2>
+            <p id="posting-summary">0 apply-enabled postings</p>
           </div>
           <div class="posting-header-actions">
-            <button id="dice-posting-next-page" type="button">Next page</button>
-            <button id="dice-posting-select-all" type="button" disabled>Select all</button>
+            <button id="posting-next-page" type="button">Next page</button>
+            <button id="posting-select-all" type="button" disabled>Select all</button>
           </div>
         </div>
-        <div id="dice-posting-list" class="posting-list"></div>
+        <div id="posting-list" class="posting-list"></div>
         <div class="posting-actions">
-          <button id="dice-posting-open-selected" class="primary" type="button" disabled>Open Easy Apply</button>
-          <p id="dice-posting-status" class="meta-status"></p>
+          <button id="posting-open-selected" class="primary" type="button" disabled>Open selected</button>
+          <p id="posting-status" class="meta-status"></p>
         </div>
       </section>
 
-      <section id="dice-cover-letter-runs" class="cover-letter-runs" hidden>
+      <section id="cover-letter-runs" class="cover-letter-runs" hidden>
         <div class="cover-letter-runs-header">
           <div>
             <h2>Cover letter PDFs</h2>
-            <p id="dice-cover-letter-summary">No active PDFs</p>
+            <p id="cover-letter-summary">No active PDFs</p>
           </div>
         </div>
-        <div id="dice-cover-letter-list" class="cover-letter-list"></div>
+        <div id="cover-letter-list" class="cover-letter-list"></div>
       </section>
     </main>
     <script src="ui/content_scripts.js"></script>
-    <script src="ui/dice_posting_picker.js"></script>
-    <script src="ui/dice_cover_letter_runs.js"></script>
+    <script src="ui/posting_picker.js"></script>
+    <script src="ui/cover_letter_runs.js"></script>
     <script src="sidepanel.js"></script>
   </body>
 </html>

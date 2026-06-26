@@ -1,4 +1,4 @@
-const DICE_SIDE_PANEL_PATH = "sidepanel.html";
+const POSTING_SIDE_PANEL_PATH = "sidepanel.html";
 const DRAFT_SIDE_PANEL_PATH = "draft_sidepanel.html";
 
 function isDiceUrl(value) {
@@ -10,8 +10,30 @@ function isDiceUrl(value) {
   }
 }
 
+function isIndeedResultsUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname === "www.indeed.com" && url.pathname === "/jobs";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isLinkedInResultsUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname.includes("linkedin.com") && url.pathname === "/jobs/search/";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isPostingPickerUrl(value) {
+  return isDiceUrl(value) || isIndeedResultsUrl(value) || isLinkedInResultsUrl(value);
+}
+
 function sidePanelPathForUrl(url) {
-  return isDiceUrl(url) ? DICE_SIDE_PANEL_PATH : DRAFT_SIDE_PANEL_PATH;
+  return isPostingPickerUrl(url) ? POSTING_SIDE_PANEL_PATH : DRAFT_SIDE_PANEL_PATH;
 }
 
 async function redirectPopupToSidePanel() {

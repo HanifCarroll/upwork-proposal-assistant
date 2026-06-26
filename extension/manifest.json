@@ -49,17 +49,21 @@
       "js": [
         "extractors/common.js",
         "platforms/dice_opportunity.js",
+        "platforms/indeed_opportunity.js",
+        "platforms/linkedin_opportunity.js",
         "extractors/upwork.js",
         "extractors/dice.js",
         "extractors/indeed.js",
         "extractors/ziprecruiter.js",
         "extractors/roberthalf.js",
         "extractors/linkedin.js",
-        "ui/dice_cover_letter_runs.js",
+        "ui/cover_letter_runs.js",
         "content_script.js",
         "application/ledger_badge.js",
         "application_logger.js",
-        "dice_wizard_assistant.js"
+        "dice_wizard_assistant.js",
+        "indeed_smartapply_assistant.js",
+        "linkedin_easy_apply_assistant.js"
       ],
       "run_at": "document_idle"
     }

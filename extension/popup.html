@@ -30,21 +30,21 @@
         </div>
       </div>
 
-      <section id="dice-posting-picker" class="posting-picker" hidden>
+      <section id="posting-picker" class="posting-picker" hidden>
         <div class="posting-picker-header">
           <div>
-            <h2>Dice postings</h2>
-            <p id="dice-posting-summary">0 visible</p>
+            <h2 id="posting-picker-title">Apply-enabled postings</h2>
+            <p id="posting-summary">0 visible</p>
           </div>
           <div class="posting-header-actions">
-            <button id="dice-posting-next-page" type="button">Next page</button>
-            <button id="dice-posting-select-all" type="button">Select all</button>
+            <button id="posting-next-page" type="button">Next page</button>
+            <button id="posting-select-all" type="button">Select all</button>
           </div>
         </div>
-        <div id="dice-posting-list" class="posting-list"></div>
+        <div id="posting-list" class="posting-list"></div>
         <div class="posting-actions">
-          <button id="dice-posting-open-selected" class="primary" type="button" disabled>Open Easy Apply</button>
-          <p id="dice-posting-status" class="meta-status"></p>
+          <button id="posting-open-selected" class="primary" type="button" disabled>Open selected</button>
+          <p id="posting-status" class="meta-status"></p>
         </div>
       </section>
 
@@ -174,7 +174,7 @@
     <script src="ui/draft_form.js"></script>
     <script src="ui/application_status.js"></script>
     <script src="ui/pdf_controls.js"></script>
-    <script src="ui/dice_posting_picker.js"></script>
+    <script src="ui/posting_picker.js"></script>
     <script src="draft_panel.js"></script>
   </body>
 </html>
